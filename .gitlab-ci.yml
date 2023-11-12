@@ -1,0 +1,37 @@
+image: "rust:latest"
+
+variables:
+  RUSTFLAGS: -D warnings
+
+default:
+  before_script:
+    - rustc --version 
+    - cargo --version
+  tags:
+    - shared-fi
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  script:
+    - cargo build --verbose
+
+lint:
+  stage: build
+  script:
+    - rustup component add clippy
+    - cargo clippy --all-targets
+    
+format:
+  stage: build
+  script:
+    - rustup component add rustfmt
+    - cargo fmt -- --check
+
+test:
+  stage: test
+  script:
+    - cargo test
