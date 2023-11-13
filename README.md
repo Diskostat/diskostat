@@ -101,4 +101,6 @@ Here the ticket is:
 - Create branch named feature/your-feature-name for each task.
 - Create branch named fix/your-bug-name for each task.
 - Use conventional commits.
-- After approval, the developer merges the request.
+- Developer creates MR to main. After approval, the developer merges the request.
+
+### Releasing
