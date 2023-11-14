@@ -11,9 +11,9 @@ The best utility to make some space.
 - Deadline: January 2024
 
 
-### Oficialnie zadanie
+### Assignment
 
-**Diskopeia**
+**Diskopedia**
 
 Design a user-friendly command-line interface (CLI) application
 equipped with a TUI (Text User Interface) library to provide an disk
@@ -27,17 +27,17 @@ get back space on their disks.
 
 ## Development process
 
-Here, the process how we work is described. It's described on the way
-of a one portion of a work to implement the product.
+Here, the process of how we work is described. It's described in the way
+of one portion of work to implement the product.
 
 ### Ticket
 
-One portion of a work to implement the product. In this project there
+One portion of work to implement the product. In this project there
 are two kinds of tickets:
 
 #### Bug
 
-severity = how often does the user flows into it * how severe it is
+severity = how often the user encounters it * how severe it is
 
 
 #### Issue
@@ -61,11 +61,11 @@ handling, requirements, non funcitonal requirements, design, and
 things I don't have currently on top of my head.
 
 Here the ticket is:
-- taken down as a idea.
+- taken down as an idea.
 
 #### 2. Ready for taking
 
-After refinement ticket is ready to develop it. Anyone could pick it
+After refinement the ticket is ready to be developed. Anyone could pick it
 and start coding.
 
 Here the ticket is:
@@ -83,7 +83,7 @@ Here the ticket is:
 #### 4. Ready for review
 
 Note that the ticket can be taken back to In progress if further
-progress is needed. It also does not have to be putten back.
+progress is needed. It also does not have to be put back.
 
 Here the ticket is:
 - in review,
