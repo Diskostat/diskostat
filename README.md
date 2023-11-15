@@ -37,7 +37,8 @@ are two kinds of tickets:
 
 #### Bug
 
-severity = how often the user encounters it * how severe it is
+severity = visibility (how often the user encounters it) * impact (crash? cannot use? just UI thing?)
+<!-- resource: https://sqa.stackexchange.com/a/7548 -->
 
 
 #### Issue
