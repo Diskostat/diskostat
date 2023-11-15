@@ -54,11 +54,10 @@ Each step in the flow is represented by.
 No label is needed here. It's just in project's backlog. Here goes
 everything first: bug, simple idea, big idea, ...
 
-The tickets here are ready for activity called groomming or refinement
-in scrum. That basicaly means that we should sit together and aggree
-on: how it will look like when implemented, heppy flow, error
-handling, requirements, non funcitonal requirements, design, and
-things I don't have currently on top of my head.
+Tickets here are ready for refinement in a team meeting.
+
+Agree on: how it will look like when implemented, happy flow, error
+handling, requirements, non funcitonal requirements, design, etc.
 
 Here the ticket is:
 - taken down as an idea.
