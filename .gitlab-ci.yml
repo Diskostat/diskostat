@@ -12,7 +12,6 @@ default:
 
 stages:
   - build
-  - test
 
 build:
   stage: build
@@ -32,6 +31,6 @@ format:
     - cargo fmt -- --check
 
 test:
-  stage: test
+  stage: build
   script:
     - cargo test
