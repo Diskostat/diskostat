@@ -1,6 +1,6 @@
 Quick description of this feature.
 
-/label Reporter::
+/label ~Reporter::
 
 ## 👤 User story
 
