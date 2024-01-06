@@ -10,3 +10,8 @@ name = "disko"
 path = "src/main.rs"
 
 [dependencies]
+tuirealm = { version = "^1.9.1", default-features = false, features = [
+    "ratatui",
+    "derive",
+    "crossterm",
+] }
