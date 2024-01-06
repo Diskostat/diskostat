@@ -24,6 +24,7 @@ into each folder's key information, statistics, and attributes
 directly from the dashboard. Users can simply delete folder or file to
 get back space on their disks.
 
+[Topic in the IS](https://is.muni.cz/auth/rozpis/tema?fakulta=1433;kod=PV281;predmet=1554254;sorter=vedouci;balik=497045;tema=498496;uplne_info=1;obdobi=9223)
 
 ## Development process
 
@@ -37,7 +38,7 @@ are two kinds of tickets:
 
 #### Bug
 
-severity = visibility (how often the user encounters it) * impact (crash? cannot use? just UI thing?)
+severity = visibility (how often the user encounters it) *(times) impact (crash? cannot use? just UI thing?)
 <!-- resource: https://sqa.stackexchange.com/a/7548 -->
 
 
