@@ -10,3 +10,4 @@ name = "disko"
 path = "src/main.rs"
 
 [dependencies]
+slab_tree = "0.3.2"
