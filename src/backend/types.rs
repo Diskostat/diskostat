@@ -1,6 +1,6 @@
 use std::fs;
 
-pub enum EnteryType {
+pub enum EntryType {
     Directory,
     File(FileType),
 }
@@ -11,10 +11,10 @@ pub enum FileType {
     Image,
 }
 
-pub struct EnteryNode {
+pub struct EntryNode {
     name: String,
     size: usize,
-    descendatns: usize,
-    entery_type: EnteryType,
+    descendants: usize,
+    entry_type: EntryType,
     medatata: fs::Metadata,
 }
