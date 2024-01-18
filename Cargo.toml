@@ -10,4 +10,5 @@ name = "disko"
 path = "src/main.rs"
 
 [dependencies]
+jwalk = "0.8.1"
 slab_tree = "0.3.2"
