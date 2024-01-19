@@ -3,7 +3,7 @@ use std::{io, panic};
 use anyhow::Result;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
-    terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
 };
 
 use super::{
@@ -34,7 +34,7 @@ impl Tui {
     /// It enables the raw mode, sets terminal properties,
     /// and starts the event handler.
     pub fn enter(&mut self) -> Result<()> {
-        terminal::enable_raw_mode()?;
+        crossterm::terminal::enable_raw_mode()?;
         crossterm::execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
 
         // Define a custom panic hook to reset the terminal properties.
@@ -57,7 +57,7 @@ impl Tui {
     /// This function is also used for the panic hook to revert
     /// the terminal properties if unexpected errors occur.
     fn reset() -> Result<()> {
-        terminal::disable_raw_mode()?;
+        crossterm::terminal::disable_raw_mode()?;
         crossterm::execute!(io::stderr(), LeaveAlternateScreen, DisableMouseCapture)?;
         Ok(())
     }

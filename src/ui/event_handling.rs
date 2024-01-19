@@ -1,5 +1,5 @@
 use anyhow::Result;
-use crossterm::event::{self, Event as CrosstermEvent, KeyEvent, MouseEvent};
+use crossterm::event::{Event as CrosstermEvent, KeyEvent, KeyEventKind, MouseEvent};
 
 use std::{
     sync::{
@@ -98,7 +98,7 @@ impl EventHandler {
                 .checked_sub(last_tick.elapsed())
                 .unwrap_or(tick_delay);
 
-            if event::poll(timeout).expect("Unable to poll for event") {
+            if crossterm::event::poll(timeout).expect("Unable to poll for event") {
                 let event = Self::read_crossterm_event();
 
                 if let Some(event) = event {
@@ -122,9 +122,9 @@ impl EventHandler {
     }
 
     fn read_crossterm_event() -> Option<Event> {
-        match event::read().expect("Unable to read event.") {
+        match crossterm::event::read().expect("Unable to read event.") {
             CrosstermEvent::Key(e) => {
-                if e.kind == event::KeyEventKind::Press {
+                if e.kind == KeyEventKind::Press {
                     Some(Event::Key(e))
                 } else {
                     None // ignore KeyEventKind::Release on windows
