@@ -1,28 +1,13 @@
-/// Application.
-pub mod app;
-
-/// Application actions.
-pub mod action;
-
-/// Terminal events handler.
-pub mod event;
-
-/// Widget renderer.
+/// The front end of the application.
 pub mod ui;
 
-/// Terminal user interface.
-pub mod tui;
-
-/// Utility functions.
-pub mod utils;
-
-use app::App;
-use utils::AppResult;
+use anyhow::Result;
+use ui::app::App;
 
 const DEFAULT_TICK_RATE: f64 = 4.0;
 const DEFAULT_RENDER_RATE: f64 = 30.0;
 
-fn main() -> AppResult<()> {
+fn main() -> Result<()> {
     // Create and start the application.
     let mut app = App::new(DEFAULT_TICK_RATE, DEFAULT_RENDER_RATE)?;
     app.run()?;

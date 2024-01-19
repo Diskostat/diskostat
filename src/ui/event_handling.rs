@@ -1,3 +1,4 @@
+use anyhow::Result;
 use crossterm::event::{self, Event as CrosstermEvent, KeyEvent, MouseEvent};
 
 use std::{
@@ -8,8 +9,6 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-
-use crate::utils::AppResult;
 
 /// Terminal events.
 #[derive(Clone, Copy, Debug)]
@@ -65,7 +64,7 @@ impl EventHandler {
     }
 
     /// Starts the processing of events.
-    pub fn start(&mut self) -> AppResult<()> {
+    pub fn start(&mut self) -> Result<()> {
         self.sender
             .send(Event::Init)
             .expect("Failed to send init event");
@@ -74,52 +73,72 @@ impl EventHandler {
 
         let tick_sender = self.sender.clone();
         let cancel_tick_handler = self.should_cancel.clone();
-        let tick_handler = thread::spawn(move || {
-            let mut last_tick = Instant::now();
-            loop {
-                let timeout = tick_delay
-                    .checked_sub(last_tick.elapsed())
-                    .unwrap_or(tick_delay);
-
-                if event::poll(timeout).expect("Unable to poll for event") {
-                    let event = match event::read().expect("Unable to read event.") {
-                        CrosstermEvent::Key(e) => {
-                            if e.kind == event::KeyEventKind::Press {
-                                Some(Event::Key(e))
-                            } else {
-                                None // ignore KeyEventKind::Release on windows
-                            }
-                        }
-                        CrosstermEvent::Mouse(e) => Some(Event::Mouse(e)),
-                        CrosstermEvent::Resize(w, h) => Some(Event::Resize(w, h)),
-                        _ => None,
-                    };
-
-                    if let Some(event) = event {
-                        tick_sender
-                            .send(event)
-                            .expect("Failed to send crossterm event.");
-                    }
-                }
-
-                if last_tick.elapsed() >= tick_delay {
-                    tick_sender
-                        .send(Event::Tick)
-                        .expect("Failed to send tick event.");
-                    last_tick = Instant::now();
-                }
-
-                if cancel_tick_handler.load(Ordering::SeqCst) {
-                    break;
-                }
-            }
-        });
+        let tick_handler =
+            thread::spawn(move || Self::handle_tick(tick_delay, tick_sender, cancel_tick_handler));
         self.handlers.push(tick_handler);
 
         let render_sender = self.sender.clone();
         let cancel_render_handler = self.should_cancel.clone();
         let render_delay = Duration::try_from_secs_f64(1.0 / self.render_rate)?;
-        let render_handler = thread::spawn(move || loop {
+        let render_handler = thread::spawn(move || {
+            Self::handle_render(render_delay, render_sender, cancel_render_handler)
+        });
+        self.handlers.push(render_handler);
+
+        Ok(())
+    }
+
+    fn handle_tick(
+        tick_delay: Duration,
+        tick_sender: mpsc::Sender<Event>,
+        cancel_tick_handler: Arc<AtomicBool>,
+    ) {
+        let mut last_tick = Instant::now();
+        loop {
+            let timeout = tick_delay
+                .checked_sub(last_tick.elapsed())
+                .unwrap_or(tick_delay);
+
+            if event::poll(timeout).expect("Unable to poll for event") {
+                let event = match event::read().expect("Unable to read event.") {
+                    CrosstermEvent::Key(e) => {
+                        if e.kind == event::KeyEventKind::Press {
+                            Some(Event::Key(e))
+                        } else {
+                            None // ignore KeyEventKind::Release on windows
+                        }
+                    }
+                    CrosstermEvent::Mouse(e) => Some(Event::Mouse(e)),
+                    CrosstermEvent::Resize(w, h) => Some(Event::Resize(w, h)),
+                    _ => None,
+                };
+
+                if let Some(event) = event {
+                    tick_sender
+                        .send(event)
+                        .expect("Failed to send crossterm event.");
+                }
+            }
+
+            if last_tick.elapsed() >= tick_delay {
+                tick_sender
+                    .send(Event::Tick)
+                    .expect("Failed to send tick event.");
+                last_tick = Instant::now();
+            }
+
+            if cancel_tick_handler.load(Ordering::SeqCst) {
+                break;
+            }
+        }
+    }
+
+    fn handle_render(
+        render_delay: Duration,
+        render_sender: mpsc::Sender<Event>,
+        cancel_render_handler: Arc<AtomicBool>,
+    ) {
+        loop {
             thread::sleep(render_delay);
             render_sender
                 .send(Event::Render)
@@ -128,14 +147,11 @@ impl EventHandler {
             if cancel_render_handler.load(Ordering::SeqCst) {
                 break;
             }
-        });
-        self.handlers.push(render_handler);
-
-        Ok(())
+        }
     }
 
     /// Stops the processing of events.
-    pub fn stop(&mut self) -> AppResult<()> {
+    pub fn stop(&mut self) -> Result<()> {
         self.should_cancel.store(true, Ordering::SeqCst);
         while let Some(handler) = self.handlers.pop() {
             handler
@@ -149,7 +165,7 @@ impl EventHandler {
     ///
     /// This function will always block the current thread if
     /// there is no data available and it's possible for more data to be sent.
-    pub fn next(&self) -> AppResult<Event> {
+    pub fn next(&self) -> Result<Event> {
         Ok(self.receiver.recv()?)
     }
 }

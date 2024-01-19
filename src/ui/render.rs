@@ -3,7 +3,7 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::app::AppState;
+use super::app::AppState;
 
 /// Renders the user interface.
 pub fn render(_state: &mut AppState, frame: &mut Frame) {

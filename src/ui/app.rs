@@ -1,16 +1,23 @@
 use std::sync::mpsc;
 
-use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
-use crate::{
-    action::Action,
-    event::{Event, EventHandler},
+use super::{
+    event_handling::{Event, EventHandler},
+    key_handling::map_key_events,
     tui::Tui,
-    utils::AppResult,
 };
 
+use anyhow::Result;
+
 pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>;
+
+/// All possible application actions
+pub enum Action {
+    Tick,
+    Resize(u16, u16),
+    Quit,
+}
 
 /// Application state
 pub struct AppState {
@@ -25,7 +32,7 @@ pub struct App {
 
 impl App {
     /// Constructs a new instance of [`App`].
-    pub fn new(tick_rate: f64, render_rate: f64) -> AppResult<Self> {
+    pub fn new(tick_rate: f64, render_rate: f64) -> Result<Self> {
         // Initialize the terminal user interface.
         let backend = CrosstermBackend::new(std::io::stdout());
         let terminal = Terminal::new(backend)?;
@@ -40,7 +47,7 @@ impl App {
     }
 
     /// Runs the main loop of the application.
-    pub fn run(&mut self) -> AppResult<()> {
+    pub fn run(&mut self) -> Result<()> {
         self.tui.enter()?;
 
         // Start the main loop.
@@ -53,7 +60,7 @@ impl App {
             }
 
             // Handle events.
-            let action = Self::get_action(event);
+            let action = map_key_events(event);
 
             self.update(action)?;
         }
@@ -67,7 +74,7 @@ impl App {
     pub fn tick(&mut self) {}
 
     /// Handles the resize event of the terminal.
-    pub fn resize(&mut self, width: u16, height: u16) -> AppResult<()> {
+    pub fn resize(&mut self, width: u16, height: u16) -> Result<()> {
         self.tui.terminal.resize(Rect::new(0, 0, width, height))?;
         Ok(())
     }
@@ -77,28 +84,8 @@ impl App {
         self.state.should_quit = true;
     }
 
-    /// Map the terminal event to an application action.
-    fn get_action(event: Event) -> Option<Action> {
-        let action = match event {
-            Event::Tick => Action::Tick,
-            Event::Key(key) => match key.code {
-                KeyCode::Esc | KeyCode::Char('q') => Action::Quit,
-                KeyCode::Char('c') | KeyCode::Char('C')
-                    if key.modifiers == KeyModifiers::CONTROL =>
-                {
-                    Action::Quit
-                }
-                _ => return None,
-            },
-            Event::Mouse(_) => return None,
-            Event::Resize(w, h) => Action::Resize(w, h),
-            _ => return None,
-        };
-        Some(action)
-    }
-
     /// Handle the application actions.
-    pub fn update(&mut self, action: Option<Action>) -> AppResult<()> {
+    pub fn update(&mut self, action: Option<Action>) -> Result<()> {
         if let Some(action) = action {
             match action {
                 Action::Tick => self.tick(),

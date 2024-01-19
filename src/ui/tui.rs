@@ -1,15 +1,15 @@
 use std::{io, panic};
 
+use anyhow::Result;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-use crate::{
+use super::{
     app::{AppState, CrosstermTerminal},
-    event::EventHandler,
-    ui,
-    utils::AppResult,
+    event_handling::EventHandler,
+    render,
 };
 
 /// Representation of a terminal user interface.
@@ -33,7 +33,7 @@ impl Tui {
     ///
     /// It enables the raw mode, sets terminal properties,
     /// and starts the event handler.
-    pub fn enter(&mut self) -> AppResult<()> {
+    pub fn enter(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
         crossterm::execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
 
@@ -56,7 +56,7 @@ impl Tui {
     ///
     /// This function is also used for the panic hook to revert
     /// the terminal properties if unexpected errors occur.
-    fn reset() -> AppResult<()> {
+    fn reset() -> Result<()> {
         terminal::disable_raw_mode()?;
         crossterm::execute!(io::stderr(), LeaveAlternateScreen, DisableMouseCapture)?;
         Ok(())
@@ -66,7 +66,7 @@ impl Tui {
     ///
     /// It disables the raw mode, reverts back the terminal properties,
     /// and stops the event handler.
-    pub fn exit(&mut self) -> AppResult<()> {
+    pub fn exit(&mut self) -> Result<()> {
         self.events.stop()?;
 
         Self::reset()?;
@@ -75,8 +75,8 @@ impl Tui {
     }
 
     /// Draw the terminal interface by rendering the widgets.
-    pub fn draw(&mut self, state: &mut AppState) -> AppResult<()> {
-        self.terminal.draw(|frame| ui::render(state, frame))?;
+    pub fn draw(&mut self, state: &mut AppState) -> Result<()> {
+        self.terminal.draw(|frame| render::render(state, frame))?;
         Ok(())
     }
 }
