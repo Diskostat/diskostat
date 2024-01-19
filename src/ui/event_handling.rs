@@ -31,7 +31,6 @@ pub enum Event {
 #[derive(Debug)]
 pub struct EventHandler {
     /// Event sender channel.
-    #[allow(dead_code)]
     sender: mpsc::Sender<Event>,
     /// Event receiver channel.
     receiver: mpsc::Receiver<Event>,
@@ -100,18 +99,7 @@ impl EventHandler {
                 .unwrap_or(tick_delay);
 
             if event::poll(timeout).expect("Unable to poll for event") {
-                let event = match event::read().expect("Unable to read event.") {
-                    CrosstermEvent::Key(e) => {
-                        if e.kind == event::KeyEventKind::Press {
-                            Some(Event::Key(e))
-                        } else {
-                            None // ignore KeyEventKind::Release on windows
-                        }
-                    }
-                    CrosstermEvent::Mouse(e) => Some(Event::Mouse(e)),
-                    CrosstermEvent::Resize(w, h) => Some(Event::Resize(w, h)),
-                    _ => None,
-                };
+                let event = Self::read_crossterm_event();
 
                 if let Some(event) = event {
                     tick_sender
@@ -130,6 +118,21 @@ impl EventHandler {
             if cancel_tick_handler.load(Ordering::SeqCst) {
                 break;
             }
+        }
+    }
+
+    fn read_crossterm_event() -> Option<Event> {
+        match event::read().expect("Unable to read event.") {
+            CrosstermEvent::Key(e) => {
+                if e.kind == event::KeyEventKind::Press {
+                    Some(Event::Key(e))
+                } else {
+                    None // ignore KeyEventKind::Release on windows
+                }
+            }
+            CrosstermEvent::Mouse(e) => Some(Event::Mouse(e)),
+            CrosstermEvent::Resize(w, h) => Some(Event::Resize(w, h)),
+            _ => None,
         }
     }
 
