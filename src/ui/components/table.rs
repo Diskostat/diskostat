@@ -21,38 +21,42 @@ impl<T> StatefulTable<T> {
     }
 
     pub fn focus_next(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+
         let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
+            Some(i) => (i + 1) % self.items.len(),
             None => 0,
         };
         self.state.select(Some(i));
     }
 
     pub fn focus_previous(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+
         let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
-                } else {
-                    i - 1
-                }
-            }
+            Some(i) => (self.items.len() + i - 1) % self.items.len(),
             None => 0,
         };
         self.state.select(Some(i));
     }
 
     pub fn focus_first(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+
         self.state.select(Some(0));
     }
 
     pub fn focus_last(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+
         self.state.select(Some(self.items.len() - 1));
     }
 }
