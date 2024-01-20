@@ -61,7 +61,7 @@ impl App {
         let tui = Tui::new(terminal, events);
         let state = AppState {
             should_quit: false,
-            main_table: StatefulTable::with_selected(files, Some(0)),
+            main_table: StatefulTable::with_focused(files, Some(0)),
         };
 
         Ok(Self { state, tui })
@@ -111,10 +111,10 @@ impl App {
             match action {
                 Action::Tick => self.tick(),
                 Action::Quit => self.quit(),
-                Action::FocusNextItem => self.state.main_table.select_next(),
-                Action::FocusPreviousItem => self.state.main_table.select_previous(),
-                Action::FocusFirstItem => self.state.main_table.select_first(),
-                Action::FocusLastItem => self.state.main_table.select_last(),
+                Action::FocusNextItem => self.state.main_table.focus_next(),
+                Action::FocusPreviousItem => self.state.main_table.focus_previous(),
+                Action::FocusFirstItem => self.state.main_table.focus_first(),
+                Action::FocusLastItem => self.state.main_table.focus_last(),
                 Action::Resize(w, h) => self.resize(w, h)?,
             }
         }

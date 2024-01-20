@@ -13,14 +13,14 @@ impl<T> StatefulTable<T> {
         }
     }
 
-    pub fn with_selected(items: Vec<T>, selected: Option<usize>) -> StatefulTable<T> {
+    pub fn with_focused(items: Vec<T>, selected: Option<usize>) -> StatefulTable<T> {
         StatefulTable {
             items,
             state: TableState::default().with_selected(selected),
         }
     }
 
-    pub fn select_next(&mut self) {
+    pub fn focus_next(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
                 if i >= self.items.len() - 1 {
@@ -34,7 +34,7 @@ impl<T> StatefulTable<T> {
         self.state.select(Some(i));
     }
 
-    pub fn select_previous(&mut self) {
+    pub fn focus_previous(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
@@ -48,11 +48,11 @@ impl<T> StatefulTable<T> {
         self.state.select(Some(i));
     }
 
-    pub fn select_first(&mut self) {
+    pub fn focus_first(&mut self) {
         self.state.select(Some(0));
     }
 
-    pub fn select_last(&mut self) {
+    pub fn focus_last(&mut self) {
         self.state.select(Some(self.items.len() - 1));
     }
 }
