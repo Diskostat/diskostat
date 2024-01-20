@@ -37,6 +37,8 @@ fn get_main_layout(area: Rect) -> Rc<[Rect]> {
 fn get_middle_layout(area: Rect) -> Rc<[Rect]> {
     Layout::default()
         .direction(Direction::Horizontal)
+        // use a 49/51 split instead of 50/50 to ensure that any extra space is on the right
+        // side of the screen which renders the border between the two areas.
         .constraints([Constraint::Percentage(49), Constraint::Percentage(51)])
         .split(area)
 }
