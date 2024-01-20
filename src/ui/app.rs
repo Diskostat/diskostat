@@ -1,8 +1,9 @@
-use std::sync::mpsc;
+use std::{fs, sync::mpsc};
 
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
 use super::{
+    components::table::StatefulTable,
     event_handling::{Event, EventHandler},
     key_handling::map_key_events,
     tui::Tui,
@@ -12,16 +13,21 @@ use anyhow::Result;
 
 pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>;
 
-/// All possible application actions
+/// All possible application actions.
 pub enum Action {
     Tick,
+    FocusNextItem,
+    FocusPreviousItem,
+    FocusFirstItem,
+    FocusLastItem,
     Resize(u16, u16),
     Quit,
 }
 
-/// Application state
+/// Application state.
 pub struct AppState {
     pub should_quit: bool,
+    pub main_table: StatefulTable<String>,
 }
 
 /// Application.
@@ -40,8 +46,23 @@ impl App {
         let (sender, receiver) = mpsc::channel();
         let events = EventHandler::new(tick_rate, render_rate, sender, receiver);
 
+        let files = fs::read_dir(".")?
+            .map(|file| {
+                file.unwrap()
+                    .path()
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect();
+
         let tui = Tui::new(terminal, events);
-        let state = AppState { should_quit: false };
+        let state = AppState {
+            should_quit: false,
+            main_table: StatefulTable::with_selected(files, Some(0)),
+        };
 
         Ok(Self { state, tui })
     }
@@ -90,6 +111,10 @@ impl App {
             match action {
                 Action::Tick => self.tick(),
                 Action::Quit => self.quit(),
+                Action::FocusNextItem => self.state.main_table.select_next(),
+                Action::FocusPreviousItem => self.state.main_table.select_previous(),
+                Action::FocusFirstItem => self.state.main_table.select_first(),
+                Action::FocusLastItem => self.state.main_table.select_last(),
                 Action::Resize(w, h) => self.resize(w, h)?,
             }
         }

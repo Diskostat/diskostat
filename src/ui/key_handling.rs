@@ -11,6 +11,10 @@ pub fn map_key_events(event: Event) -> Option<Action> {
             KeyCode::Char('c') | KeyCode::Char('C') if key.modifiers == KeyModifiers::CONTROL => {
                 Action::Quit
             }
+            KeyCode::Down | KeyCode::Char('j') => Action::FocusNextItem,
+            KeyCode::Up | KeyCode::Char('k') => Action::FocusPreviousItem,
+            KeyCode::Char('g') => Action::FocusFirstItem,
+            KeyCode::Char('G') => Action::FocusLastItem,
             _ => return None,
         },
         Event::Mouse(_) => return None,

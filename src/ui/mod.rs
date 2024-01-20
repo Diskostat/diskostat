@@ -12,3 +12,6 @@ pub mod render;
 
 /// Terminal user interface.
 pub mod tui;
+
+/// Component logic used for rendering UI widgets.
+pub mod components;

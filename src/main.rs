@@ -4,7 +4,7 @@ pub mod ui;
 use anyhow::Result;
 use ui::app::App;
 
-const DEFAULT_TICK_RATE: f64 = 4.0;
+const DEFAULT_TICK_RATE: f64 = 30.0;
 const DEFAULT_RENDER_RATE: f64 = 30.0;
 
 fn main() -> Result<()> {
