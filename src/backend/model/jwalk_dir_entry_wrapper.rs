@@ -20,7 +20,7 @@ impl EntryNode {
         Some(EntryNode{
             name,
             size,
-            descendants: 0,
+            descendants_count: 0,
             entry_type,
             metadata,
         })

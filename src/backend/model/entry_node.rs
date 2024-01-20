@@ -1,14 +1,23 @@
-use std::{fs, path::Path};
+use std::{fs, path::Path, fmt::Display};
 
 use super::entry_type::EntryType;
 
 
+#[derive(Clone)]
 pub(crate) struct EntryNode {
     pub(crate) name: String,
     pub(crate) size: u64,
-    pub(crate) descendants: usize,
+    pub(crate) descendants_count: usize,
     pub(crate) entry_type: EntryType,
     pub(crate) metadata: fs::Metadata,
+}
+
+// Traits implementations
+
+impl Display for EntryNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EntryNode: size={:12} | {}", self.size, self.name)
+    }
 }
 
 // Convenience helpers
@@ -29,9 +38,10 @@ impl EntryNode {
         return Some(Self {
             name,
             size: 0,
-            descendants: 0,
+            descendants_count: 0,
             entry_type: EntryType::Directory,
             metadata,
         })
     }
+
 }

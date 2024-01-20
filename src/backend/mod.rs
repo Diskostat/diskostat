@@ -3,6 +3,8 @@ pub(crate) mod model {
     pub(crate) mod entry_type;
     pub(crate) mod entry_node;
     pub(crate) mod tree_walk_state;
+    pub(crate) mod tree;
+    pub(crate) mod node;
 }
 pub(crate) mod types;
 pub(crate) mod disko_tree;

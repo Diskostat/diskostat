@@ -7,11 +7,9 @@ use std::collections::HashMap;
 use std::env::current_dir;
 use std::fs::{self, DirEntry};
 use std::path::{Path, PathBuf};
-use jwalk::WalkDir;
-use std::cmp::Ordering;
-use jwalk::WalkDirGeneric;
-use jwalk::ClientState;
-use slab_tree::*;
+
+use crate::backend::model::node::Node;
+use crate::backend::model::tree::Tree;
 
 // TODO: throw here some Arc for multi threading safe usage
 #[derive(Default, Debug)]
@@ -23,22 +21,41 @@ struct SizeCountingWalkDirState {
 // impl ClientState for SizeCountingWalkDirState { }
 
 
-fn create_disko_tree() -> &'static DiskoTree {
-    Box::leak(Box::new(DiskoTree::new()))
-}
+// fn create_disko_tree() -> &'static DiskoTree {
+//     Box::leak(Box::new(DiskoTree::new()))
+// }
 
 fn main() {
 
 
 
-    println!("Contents of directory:");
+    let mut tree = Tree::new();
+
+
+    // print!("{}", boxed);
+
+    println!("empty tree: {:?}\n", tree);
+
+
+    let root_node = tree.set_root(4).expect("Failed to get back root node");
+
+    let node = Node::new(2);
+
+    let newly_created_child_node = Tree::attach_child(root_node, node);
+
+    println!("{tree:?}\n");
+    println!("newly created node:\n{newly_created_child_node:?}");
 
 
 
-    let disko_tree = create_disko_tree();
+    // println!("Contents of directory:");
 
 
-    disko_tree.traverse();
+
+    // let disko_tree = create_disko_tree();
+
+
+    // disko_tree.traverse();
 
 
     let current_dir = current_dir().unwrap();
@@ -62,19 +79,5 @@ fn main() {
     //     println!("{:?} \t {:?}", entry.file_name().unwrap(), metadata.st_size());
     // }
 
-
-
-    let mut tree = TreeBuilder::new().with_root("hello").build();
-    let root_id = tree.root_id().expect("root doesn't exist?");
-    let mut hello = tree.get_mut(root_id).unwrap();
-
-    let node = hello.append("world");
-    for child in node.as_ref().children() {
-
-    };
-    let x = hello
-        .append("trees")
-        .append("are")
-        .append("cool");
 
 }
