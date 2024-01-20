@@ -15,6 +15,8 @@ pub fn map_key_events(event: Event) -> Option<Action> {
             KeyCode::Up | KeyCode::Char('k') => Action::FocusPreviousItem,
             KeyCode::Char('g') => Action::FocusFirstItem,
             KeyCode::Char('G') => Action::FocusLastItem,
+            KeyCode::Right | KeyCode::Char('l') => Action::EnterFocusedDirectory,
+            KeyCode::Left | KeyCode::Char('h') => Action::EnterParentDirectory,
             _ => return None,
         },
         Event::Mouse(_) => return None,

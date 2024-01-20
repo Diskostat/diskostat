@@ -1,4 +1,4 @@
-use std::{fs, sync::mpsc};
+use std::{fs, path::PathBuf, sync::mpsc};
 
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
@@ -20,14 +20,24 @@ pub enum Action {
     FocusPreviousItem,
     FocusFirstItem,
     FocusLastItem,
+    EnterFocusedDirectory,
+    EnterParentDirectory,
     Resize(u16, u16),
     Quit,
+}
+
+/// Possible application preview states.
+pub enum Preview {
+    Text(String),
+    Table(StatefulTable<PathBuf>),
 }
 
 /// Application state.
 pub struct AppState {
     pub should_quit: bool,
-    pub main_table: StatefulTable<String>,
+    pub parent_dir: Option<PathBuf>,
+    pub main_table: StatefulTable<PathBuf>,
+    pub preview: Preview,
 }
 
 /// Application.
@@ -46,25 +56,43 @@ impl App {
         let (sender, receiver) = mpsc::channel();
         let events = EventHandler::new(tick_rate, render_rate, sender, receiver);
 
-        let files = fs::read_dir(".")?
-            .map(|file| {
-                file.unwrap()
-                    .path()
-                    .file_name()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string()
-            })
-            .collect();
+        let parent = PathBuf::from(".");
+        let paths = fs::read_dir(&parent)?
+            .map(|file| file.unwrap().path())
+            .collect::<Vec<PathBuf>>();
+
+        let first = paths.first().unwrap();
+        let preview = Self::get_preview(first)?;
 
         let tui = Tui::new(terminal, events);
         let state = AppState {
             should_quit: false,
-            main_table: StatefulTable::with_focused(files, Some(0)),
+            parent_dir: Some(parent),
+            main_table: StatefulTable::with_focused(paths, Some(0)),
+            preview,
         };
 
         Ok(Self { state, tui })
+    }
+
+    fn get_preview(path: &PathBuf) -> Result<Preview> {
+        if path.is_dir() {
+            Ok(Preview::Table(StatefulTable::with_items(Self::get_paths(
+                path,
+            )?)))
+        } else {
+            Ok(Preview::Text(fs::read_to_string(path)?))
+        }
+    }
+
+    fn get_paths(path: &PathBuf) -> Result<Vec<PathBuf>> {
+        if !path.is_dir() {
+            return Ok(Vec::new());
+        }
+
+        Ok(fs::read_dir(path)?
+            .map(|file| file.unwrap().path())
+            .collect::<Vec<PathBuf>>())
     }
 
     /// Runs the main loop of the application.
@@ -105,16 +133,36 @@ impl App {
         self.state.should_quit = true;
     }
 
+    fn update_focus(&mut self) -> Result<()> {
+        let focused = self.state.main_table.focused().unwrap().clone();
+        self.state.preview = Self::get_preview(&focused)?;
+        Ok(())
+    }
+
     /// Handle the application actions.
     pub fn update(&mut self, action: Option<Action>) -> Result<()> {
         if let Some(action) = action {
             match action {
                 Action::Tick => self.tick(),
                 Action::Quit => self.quit(),
-                Action::FocusNextItem => self.state.main_table.focus_next(),
-                Action::FocusPreviousItem => self.state.main_table.focus_previous(),
-                Action::FocusFirstItem => self.state.main_table.focus_first(),
-                Action::FocusLastItem => self.state.main_table.focus_last(),
+                Action::FocusNextItem => {
+                    self.state.main_table.focus_next();
+                    self.update_focus()?;
+                }
+                Action::FocusPreviousItem => {
+                    self.state.main_table.focus_previous();
+                    self.update_focus()?;
+                }
+                Action::FocusFirstItem => {
+                    self.state.main_table.focus_first();
+                    self.update_focus()?;
+                }
+                Action::FocusLastItem => {
+                    self.state.main_table.focus_last();
+                    self.update_focus()?;
+                }
+                Action::EnterFocusedDirectory => (),
+                Action::EnterParentDirectory => (),
                 Action::Resize(w, h) => self.resize(w, h)?,
             }
         }

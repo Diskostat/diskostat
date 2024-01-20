@@ -20,6 +20,10 @@ impl<T> StatefulTable<T> {
         }
     }
 
+    pub fn focused(&self) -> Option<&T> {
+        self.state.selected().and_then(|i| self.items.get(i))
+    }
+
     pub fn focus_next(&mut self) {
         if self.items.is_empty() {
             return;
