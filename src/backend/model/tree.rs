@@ -1,6 +1,6 @@
-use std::sync::{Arc, RwLock};
+use std::{sync::{Arc, RwLock}, fmt::Display, ops::SubAssign, iter};
 
-use super::node::Node;
+use super::{node::{Node, NodeToRootIterator}, entry_node::EntryNode};
 
 
 /// Tree mamade out of references. Multi-threaded.
@@ -29,11 +29,17 @@ impl<T> Tree<T> {
         Self { root: None }
     }
 
+    pub(crate) fn set_root_node(&mut self, node: Node<T>) -> Arc<RwLock<Node<T>>> {
+        let root_arc = Arc::new(RwLock::new(node));
+        self.root = Some(root_arc.clone());
+        root_arc
+    }
+
 
     /// Creates node from given data and puts it to the root of the tree.
     /// Returns: None if tree already has a root node.
     /// Returns: Created node from given data.
-    pub(crate) fn set_root(&mut self, data: T) -> Option<Arc<RwLock<Node<T>>>> {
+    pub(crate) fn create_and_set_root(&mut self, data: T) -> Option<Arc<RwLock<Node<T>>>> {
         if self.root.is_some() { return None }
         let root_node = Node::new(data);
         let root_arc = Arc::new(RwLock::new(root_node));
@@ -127,12 +133,51 @@ impl<T> Tree<T> {
             .write().expect("Could not write to parent while removing child");
         parent.children.remove(index);
     }
+
+
+    pub(crate) fn iter_to_root_from_node(node: Arc<RwLock<Node<T>>>) -> NodeToRootIterator<T> {
+        NodeToRootIterator::new(node)
+    }
+}
+
+
+impl Tree<EntryNode> {
+    pub(crate) fn pretty_print(&self)  {
+        let Some(root) = self.root.clone() else {
+            println!("Tree is empty.");
+            return;
+        };
+        Tree::pretty_print_node(0, 0, true, root);
+    }
+
+    fn pretty_print_node(depth: u32, plunge_diff: u32, is_last: bool, node: Arc<RwLock<Node<EntryNode>>>) {
+        let node = node.read().expect("Could not read node while printing tree.");
+        println!("{}{}", Self::prefix(depth, plunge_diff, is_last), node.pretty());
+        let plunge_diff = if is_last && depth == plunge_diff { plunge_diff + 1} else { plunge_diff };
+        for child in node.children.iter() {
+            let is_last = Arc::ptr_eq(child, node.children.last().unwrap());
+            Tree::pretty_print_node(depth + 1, plunge_diff, is_last, child.clone());
+        }
+    }
+
+    fn prefix(depth: u32, plunge_diff: u32, is_last: bool) -> String {
+        if depth == 0 { return "".to_string(); }
+        let mut result = String::new();
+        for _ in 0..plunge_diff {
+            result.push(' ');
+        }
+        for _ in 0..(depth - plunge_diff) {
+            result.push('|');
+        }
+        result.push_str(if is_last { "└" } else { "├" });
+        result
+    }
 }
 
 #[test]
 fn test_set_root() {
     let mut tree = Tree::new();
-    let root = tree.set_root(0);
+    let root = tree.create_and_set_root(0);
     assert!(root.is_some());
     assert!(tree.root.is_some());
     assert_eq!(tree.root.clone().unwrap().read().unwrap().data, 0);
@@ -142,7 +187,7 @@ fn test_set_root() {
 #[test]
 fn test_get_root() {
     let mut tree = Tree::new();
-    let root = tree.set_root(0).unwrap();
+    let root = tree.create_and_set_root(0).unwrap();
     let root2 = tree.get_root().unwrap();
     assert_eq!(root.read().unwrap().data, root2.read().unwrap().data);
 }
@@ -150,7 +195,7 @@ fn test_get_root() {
 #[test]
 fn test_attach_child() {
     let mut tree = Tree::new();
-    let root = tree.set_root(0).unwrap();
+    let root = tree.create_and_set_root(0).unwrap();
     let child_node = Node::new(1);
     let child = Tree::attach_child(root.clone(), child_node);
     assert_eq!(root.read().unwrap().children.len(), 1);
@@ -162,7 +207,7 @@ fn test_attach_child() {
 #[test]
 fn test_remove_subtree() {
     let mut tree = Tree::new();
-    let root = tree.set_root(0).unwrap();
+    let root = tree.create_and_set_root(0).unwrap();
     let child = Tree::attach_child(root.clone(), Node::new(1));
     tree.remove_subtree(child.clone());
     assert!(child.read().unwrap().parent.is_none());
@@ -173,7 +218,7 @@ fn test_remove_subtree() {
 #[test]
 fn test_remove_subree_with_two_layers() {
     let mut tree = Tree::new();
-    let root = tree.set_root(0).unwrap();
+    let root = tree.create_and_set_root(0).unwrap();
     let child_node = Node::new(1);
     let child = Tree::attach_child(root.clone(), child_node);
     let child_node = Node::new(2);

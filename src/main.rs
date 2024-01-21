@@ -8,6 +8,8 @@ use std::env::current_dir;
 use std::fs::{self, DirEntry};
 use std::path::{Path, PathBuf};
 
+use crate::backend::disko_tree;
+use crate::backend::model::entry_node::EntryNode;
 use crate::backend::model::node::Node;
 use crate::backend::model::tree::Tree;
 
@@ -21,44 +23,40 @@ struct SizeCountingWalkDirState {
 // impl ClientState for SizeCountingWalkDirState { }
 
 
-// fn create_disko_tree() -> &'static DiskoTree {
-//     Box::leak(Box::new(DiskoTree::new()))
-// }
+fn create_disko_tree() -> &'static DiskoTree {
+    Box::leak(Box::new(DiskoTree::new()))
+}
 
 fn main() {
 
+    // let current_dir = current_dir().unwrap();
+
+    // let mut tree = Tree::new();
+    // tree.create_and_set_root(EntryNode::new_dir(&current_dir).unwrap());
+    // tree.pretty_print();
 
 
-    let mut tree = Tree::new();
+    // return;
 
-
-    // print!("{}", boxed);
-
-    println!("empty tree: {:?}\n", tree);
-
-
-    let root_node = tree.set_root(4).expect("Failed to get back root node");
-
-    let node = Node::new(2);
-
-    let newly_created_child_node = Tree::attach_child(root_node, node);
-
-    println!("{tree:?}\n");
-    println!("newly created node:\n{newly_created_child_node:?}");
+    println!("Contents of directory:");
 
 
 
-    // println!("Contents of directory:");
+    let disko_tree = create_disko_tree();
+    disko_tree.traverse();
+
+    let tree = disko_tree.get_tree();
+    tree.read().unwrap().pretty_print();
 
 
+    // println!("{:?}", disko_tree.get_tree().read());
 
-    // let disko_tree = create_disko_tree();
 
 
     // disko_tree.traverse();
 
 
-    let current_dir = current_dir().unwrap();
+    // let current_dir = current_dir().unwrap();
     // println!("Current working directory: {}", current_dir.display());
 
     // let mut entries = vec![];

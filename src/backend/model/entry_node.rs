@@ -3,7 +3,7 @@ use std::{fs, path::Path, fmt::Display};
 use super::entry_type::EntryType;
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct EntryNode {
     pub(crate) name: String,
     pub(crate) size: u64,
@@ -37,6 +37,7 @@ impl EntryNode {
 
         return Some(Self {
             name,
+            // TODO: adjust!
             size: 0,
             descendants_count: 0,
             entry_type: EntryType::Directory,

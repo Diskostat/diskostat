@@ -15,6 +15,7 @@ impl EntryNode {
         let Some(metadata) = DirEntryToEntryNodeHelper::extract_metadata(dir_entry) else { return None };
         let Some(name) = DirEntryToEntryNodeHelper::extract_name(dir_entry) else { return None };
         let entry_type = DirEntryToEntryNodeHelper::extract_entry_type(dir_entry);
+        // TODO: adjust!
         let size = metadata.len();
 
         Some(EntryNode{
