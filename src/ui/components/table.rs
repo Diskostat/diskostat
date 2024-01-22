@@ -13,10 +13,10 @@ impl<T> StatefulTable<T> {
         }
     }
 
-    pub fn with_focused(items: Vec<T>, selected: Option<usize>) -> StatefulTable<T> {
+    pub fn with_focused(items: Vec<T>, focused: Option<usize>) -> StatefulTable<T> {
         StatefulTable {
             items,
-            state: TableState::default().with_selected(selected),
+            state: TableState::default().with_selected(focused),
         }
     }
 
