@@ -29,8 +29,8 @@ impl<T> StatefulTable<T> {
         if index > self.items.len() {
             return;
         }
-        let was_present = !self.selected.remove(&index);
-        if was_present {
+        let was_present = self.selected.remove(&index);
+        if !was_present {
             self.selected.insert(index);
         }
     }
