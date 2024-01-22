@@ -1,9 +1,11 @@
 use ratatui::widgets::TableState;
 
+use std::collections::HashSet;
+
 pub struct StatefulTable<T> {
     pub items: Vec<T>,
     pub state: TableState,
-    pub selected: Vec<usize>,
+    pub selected: HashSet<usize>,
 }
 
 impl<T> StatefulTable<T> {
@@ -11,7 +13,7 @@ impl<T> StatefulTable<T> {
         StatefulTable {
             items,
             state: TableState::default(),
-            selected: Vec::default(),
+            selected: HashSet::default(),
         }
     }
 
@@ -19,7 +21,7 @@ impl<T> StatefulTable<T> {
         StatefulTable {
             items,
             state: TableState::default().with_selected(focused),
-            selected: Vec::default(),
+            selected: HashSet::default(),
         }
     }
 
@@ -27,10 +29,9 @@ impl<T> StatefulTable<T> {
         if index > self.items.len() {
             return;
         }
-        if self.selected.contains(&index) {
-            self.selected.retain(|i| *i != index);
-        } else {
-            self.selected.push(index);
+        let was_present = !self.selected.remove(&index);
+        if was_present {
+            self.selected.insert(index);
         }
     }
 
