@@ -63,6 +63,7 @@ name = "diskostat"
 version = "0.1.0"
 dependencies = [
  "jwalk",
+ "ref_tree",
  "slab_tree",
 ]
 
@@ -101,6 +102,10 @@ dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
 ]
+
+[[package]]
+name = "ref_tree"
+version = "0.1.0"
 
 [[package]]
 name = "slab_tree"

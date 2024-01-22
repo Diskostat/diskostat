@@ -6,13 +6,11 @@ use std::{
     sync::{Arc, Mutex, RwLock}, ops::Deref, borrow::BorrowMut,
 };
 
-use
-    crate::backend::model::{self};
 use jwalk::{DirEntry, Parallelism::RayonNewPool, WalkDirGeneric};
 
 
 
-use super::model::{*, tree::Tree, node::Node};
+
 use super::{
     model::{
         entry_node::EntryNode,
@@ -20,7 +18,8 @@ use super::{
     },
     types::*,
 };
-// use slab_tree::*;
+
+use ref_tree::{Tree, Node};
 
 pub struct DiskoTree {
     tree: Arc<RwLock<Tree<EntryNode>>>,
@@ -31,8 +30,6 @@ type DirEntryResult = &'static mut Result<DirEntry<(TreeWalkState, ())>, dyn Err
 impl DiskoTree {
     pub fn new() -> Self {
         Self {
-            // tree: Arc::new(Box::new(TreeBuilder::new().build())),
-            // tree: Arc::new(Box::new(TreeBuilder::new().build())),
             tree: Arc::new(RwLock::new(Tree::new())),
         }
     }
@@ -61,6 +58,7 @@ impl DiskoTree {
         state: &mut TreeWalkState,
         children: &mut Vec<jwalk::Result<DirEntry<CustomJWalkClientState>>>,
     ) {
+
         // Create entry node from jwalks
         let Some(dir_node) = EntryNode::new_dir(dir_path) else { return; };
         // Create not connected node to put into the tree then
@@ -83,7 +81,7 @@ impl DiskoTree {
             .map(Node::new)
             .for_each(|node| {
                 // println!("reading size from: {}", node.data.name);
-                size += node.data.size;
+                size += 1;
 
                 dir_node.attach_child(node);
         });

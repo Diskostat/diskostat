@@ -10,8 +10,6 @@ use std::path::{Path, PathBuf};
 
 use crate::backend::disko_tree;
 use crate::backend::model::entry_node::EntryNode;
-use crate::backend::model::node::Node;
-use crate::backend::model::tree::Tree;
 
 // TODO: throw here some Arc for multi threading safe usage
 #[derive(Default, Debug)]

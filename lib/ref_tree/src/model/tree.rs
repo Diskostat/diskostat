@@ -1,6 +1,6 @@
 use std::{sync::{Arc, RwLock}, fmt::Display, ops::SubAssign, iter};
 
-use super::{node::{Node, NodeToRootIterator}, entry_node::EntryNode};
+use super::node::{Node, NodeToRootIterator};
 
 
 /// Tree mamade out of references. Multi-threaded.
@@ -8,7 +8,7 @@ use super::{node::{Node, NodeToRootIterator}, entry_node::EntryNode};
 /// To get a certain node, you have to traverse all the tree -> do NOT do it.
 ///
 #[derive(Debug)]
-pub(crate) struct Tree<T> {
+pub struct Tree<T> {
     /// Root node of the three
     ///
     /// Option
@@ -22,14 +22,13 @@ pub(crate) struct Tree<T> {
     pub(crate) root: Option<Arc<RwLock<Node<T>>>>
 }
 
-
 impl<T> Tree<T> {
     /// Creates an empty tree.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self { root: None }
     }
 
-    pub(crate) fn set_root_node(&mut self, node: Node<T>) -> Arc<RwLock<Node<T>>> {
+    pub fn set_root_node(&mut self, node: Node<T>) -> Arc<RwLock<Node<T>>> {
         let root_arc = Arc::new(RwLock::new(node));
         self.root = Some(root_arc.clone());
         root_arc
@@ -39,7 +38,7 @@ impl<T> Tree<T> {
     /// Creates node from given data and puts it to the root of the tree.
     /// Returns: None if tree already has a root node.
     /// Returns: Created node from given data.
-    pub(crate) fn create_and_set_root(&mut self, data: T) -> Option<Arc<RwLock<Node<T>>>> {
+    pub fn create_and_set_root(&mut self, data: T) -> Option<Arc<RwLock<Node<T>>>> {
         if self.root.is_some() { return None }
         let root_node = Node::new(data);
         let root_arc = Arc::new(RwLock::new(root_node));
@@ -47,7 +46,7 @@ impl<T> Tree<T> {
         Some(root_arc)
     }
 
-    pub(crate) fn get_root(&self) -> Option<Arc<RwLock<Node<T>>>> {
+    pub fn get_root(&self) -> Option<Arc<RwLock<Node<T>>>> {
         self.root.clone()
     }
 
@@ -57,7 +56,7 @@ impl<T> Tree<T> {
     /// Connects both parent -> child and child -> parent.
     ///
     /// Returns newly created space in which child now is stored.
-    pub(crate) fn attach_child(parent: Arc<RwLock<Node<T>>>, child: Node<T>) -> Arc<RwLock<Node<T>>> {
+    pub fn attach_child(parent: Arc<RwLock<Node<T>>>, child: Node<T>) -> Arc<RwLock<Node<T>>> {
         // Connect child to parent.
         let mut child = child;
         child.parent = Some(Arc::downgrade(&parent));
@@ -80,7 +79,7 @@ impl<T> Tree<T> {
     /// reference if last (see Arc).  This function just the reference
     /// of the parent of this tree and sets root to node if
     /// applicable.
-    pub(crate) fn remove_subtree(&mut self, node: Arc<RwLock<Node<T>>>) {
+    pub fn remove_subtree(&mut self, node: Arc<RwLock<Node<T>>>) {
         // TODO: test if tree has root before removing node?
 
         if let Some(root) = self.root.clone() {
@@ -135,44 +134,45 @@ impl<T> Tree<T> {
     }
 
 
-    pub(crate) fn iter_to_root_from_node(node: Arc<RwLock<Node<T>>>) -> NodeToRootIterator<T> {
+    pub fn iter_to_root_from_node(node: Arc<RwLock<Node<T>>>) -> NodeToRootIterator<T> {
         NodeToRootIterator::new(node)
     }
 }
 
 
-impl Tree<EntryNode> {
-    pub(crate) fn pretty_print(&self)  {
-        let Some(root) = self.root.clone() else {
-            println!("Tree is empty.");
-            return;
-        };
-        Tree::pretty_print_node(0, 0, true, root);
-    }
+// TODO integrate in main crate
+// impl Tree<EntryNode> {
+//     pub(crate) fn pretty_print(&self)  {
+//         let Some(root) = self.root.clone() else {
+//             println!("Tree is empty.");
+//             return;
+//         };
+//         Tree::pretty_print_node(0, 0, true, root);
+//     }
 
-    fn pretty_print_node(depth: u32, plunge_diff: u32, is_last: bool, node: Arc<RwLock<Node<EntryNode>>>) {
-        let node = node.read().expect("Could not read node while printing tree.");
-        println!("{}{}", Self::prefix(depth, plunge_diff, is_last), node.pretty());
-        let plunge_diff = if is_last && depth == plunge_diff { plunge_diff + 1} else { plunge_diff };
-        for child in node.children.iter() {
-            let is_last = Arc::ptr_eq(child, node.children.last().unwrap());
-            Tree::pretty_print_node(depth + 1, plunge_diff, is_last, child.clone());
-        }
-    }
+//     fn pretty_print_node(depth: u32, plunge_diff: u32, is_last: bool, node: Arc<RwLock<Node<EntryNode>>>) {
+//         let node = node.read().expect("Could not read node while printing tree.");
+//         println!("{}{}", Self::prefix(depth, plunge_diff, is_last), node.pretty());
+//         let plunge_diff = if is_last && depth == plunge_diff { plunge_diff + 1} else { plunge_diff };
+//         for child in node.children.iter() {
+//             let is_last = Arc::ptr_eq(child, node.children.last().unwrap());
+//             Tree::pretty_print_node(depth + 1, plunge_diff, is_last, child.clone());
+//         }
+//     }
 
-    fn prefix(depth: u32, plunge_diff: u32, is_last: bool) -> String {
-        if depth == 0 { return "".to_string(); }
-        let mut result = String::new();
-        for _ in 0..plunge_diff {
-            result.push(' ');
-        }
-        for _ in 0..(depth - plunge_diff) {
-            result.push('|');
-        }
-        result.push_str(if is_last { "└" } else { "├" });
-        result
-    }
-}
+//     fn prefix(depth: u32, plunge_diff: u32, is_last: bool) -> String {
+//         if depth == 0 { return "".to_string(); }
+//         let mut result = String::new();
+//         for _ in 0..plunge_diff {
+//             result.push(' ');
+//         }
+//         for _ in 0..(depth - plunge_diff) {
+//             result.push('|');
+//         }
+//         result.push_str(if is_last { "└" } else { "├" });
+//         result
+//     }
+// }
 
 #[test]
 fn test_set_root() {
