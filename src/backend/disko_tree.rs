@@ -38,7 +38,7 @@ impl DiskoTree {
     }
 
     pub fn traverse(&'static self) {
-        let walk_dir = WalkDirGeneric::<(TreeWalkState, ())>::new("./src/")
+        let walk_dir = WalkDirGeneric::<(TreeWalkState, ())>::new(".")
             .sort(true)
             .parallelism(RayonNewPool(10))
             .root_read_dir_state( TreeWalkState::Tree(self.tree.clone()) )
@@ -82,7 +82,7 @@ impl DiskoTree {
             )
             .map(Node::new)
             .for_each(|node| {
-                println!("reading size from: {}", node.data.name);
+                // println!("reading size from: {}", node.data.name);
                 size += node.data.size;
 
                 dir_node.attach_child(node);

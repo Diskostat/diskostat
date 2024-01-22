@@ -38,7 +38,7 @@ fn main() {
 
     // return;
 
-    println!("Contents of directory:");
+    // println!("Contents of directory:");
 
 
 
@@ -46,7 +46,16 @@ fn main() {
     disko_tree.traverse();
 
     let tree = disko_tree.get_tree();
-    tree.read().unwrap().pretty_print();
+    // tree.read().unwrap().pretty_print();
+
+    let root = { tree.read().unwrap().get_root().unwrap() };
+
+    let data = {
+        root.read().unwrap().data.clone()
+    };
+
+    println!("Total size of ./: {}", data.size);
+
 
 
     // println!("{:?}", disko_tree.get_tree().read());
