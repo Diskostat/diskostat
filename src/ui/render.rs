@@ -89,6 +89,7 @@ fn render_right_panel(frame: &mut Frame, area: Rect, state: &mut AppState, block
     match &mut state.preview {
         Preview::Table(table) => render_preview_table(frame, area, table, block),
         Preview::Text(text) => render_preview_paragraph(frame, area, text, block),
+        Preview::EmptyDirectory => render_preview_empty(frame, area, block),
     }
 }
 
@@ -111,6 +112,19 @@ fn render_preview_table(
     .block(block);
 
     frame.render_stateful_widget(table, area, &mut state.state);
+}
+
+fn render_preview_empty(frame: &mut Frame, area: Rect, block: Block<'_>) {
+    let text = Text::styled(
+        "Empty directory",
+        Style::new()
+            .bg(Color::White)
+            .fg(Color::Black)
+            .add_modifier(Modifier::UNDERLINED),
+    );
+
+    let paragraph = Paragraph::new(text).block(block);
+    frame.render_widget(paragraph, area);
 }
 
 fn render_preview_paragraph(frame: &mut Frame, area: Rect, state: &str, block: Block<'_>) {

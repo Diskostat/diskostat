@@ -30,6 +30,7 @@ pub enum Action {
 pub enum Preview {
     Text(String),
     Table(StatefulTable<PathBuf>),
+    EmptyDirectory,
 }
 
 /// Application state.
@@ -77,9 +78,12 @@ impl App {
 
     fn get_preview(path: &PathBuf) -> Result<Preview> {
         if path.is_dir() {
-            Ok(Preview::Table(StatefulTable::with_items(Self::get_paths(
-                path,
-            )?)))
+            let paths = Self::get_paths(path)?;
+            if paths.is_empty() {
+                return Ok(Preview::EmptyDirectory);
+            }
+
+            Ok(Preview::Table(StatefulTable::with_items(paths)))
         } else {
             Ok(Preview::Text(fs::read_to_string(path)?))
         }
