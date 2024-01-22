@@ -1,14 +1,15 @@
-use std::{sync::{Arc, RwLock}, fmt::{Debug, Formatter}};
+use std::{
+    fmt::{Debug, Formatter},
+    sync::{Arc, RwLock},
+};
 
 use super::entry_node::EntryNode;
 use ref_tree::{Node, Tree};
 
-
-
 // #[derive(Clone)]
 // pub(crate) struct TreeWalkState {
-    // pub(crate) parent: Option<Arc<NodeRef<'static, EntryNode>>>,
-    // pub(crate) tree: Arc<Tree<EntryNode>>,
+// pub(crate) parent: Option<Arc<NodeRef<'static, EntryNode>>>,
+// pub(crate) tree: Arc<Tree<EntryNode>>,
 // }
 
 #[derive(Clone)]
@@ -16,9 +17,8 @@ pub(crate) enum TreeWalkState {
     // Tree(Arc<Box<Tree<EntryNode>>>),
     // Parent(Arc<Mutex<Box<NodeMut<'static, EntryNode>>>>)
     Tree(Arc<RwLock<Tree<EntryNode>>>),
-    Parent(Arc<RwLock<Node<EntryNode>>>)
+    Parent(Arc<RwLock<Node<EntryNode>>>),
 }
-
 
 impl Default for TreeWalkState {
     fn default() -> Self {
@@ -30,8 +30,7 @@ impl Default for TreeWalkState {
 
 impl Debug for TreeWalkState {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TreeWalkState")
-            .finish()
+        f.debug_struct("TreeWalkState").finish()
     }
 }
 

@@ -8,7 +8,14 @@ fn test_set_root() {
     assert!(root.is_some());
     assert!(tree.root.is_some());
     assert_eq!(tree.root.clone().unwrap().read().unwrap().data, 0);
-    assert!(tree.root.clone().unwrap().read().unwrap().children.is_empty());
+    assert!(tree
+        .root
+        .clone()
+        .unwrap()
+        .read()
+        .unwrap()
+        .children
+        .is_empty());
 }
 
 #[test]
@@ -24,10 +31,33 @@ fn test_attach_child() {
     let mut tree = Tree::new();
     let root = tree.create_and_set_root(0).unwrap();
     let child_node = Node::new(1);
-    let child = Tree::attach_child(root.clone(), child_node);
+    let child = Tree::attach_child(&root, child_node);
     assert_eq!(root.read().unwrap().children.len(), 1);
-    assert_eq!(root.read().unwrap().children.first().unwrap().read().unwrap().data, 1);
-    assert_eq!(child.read().unwrap().parent.as_ref().unwrap().upgrade().unwrap().read().unwrap().data, 0);
+    assert_eq!(
+        root.read()
+            .unwrap()
+            .children
+            .first()
+            .unwrap()
+            .read()
+            .unwrap()
+            .data,
+        1
+    );
+    assert_eq!(
+        child
+            .read()
+            .unwrap()
+            .parent
+            .as_ref()
+            .unwrap()
+            .upgrade()
+            .unwrap()
+            .read()
+            .unwrap()
+            .data,
+        0
+    );
     assert_eq!(child.read().unwrap().data, 1);
 }
 
@@ -35,8 +65,8 @@ fn test_attach_child() {
 fn test_remove_subtree() {
     let mut tree = Tree::new();
     let root = tree.create_and_set_root(0).unwrap();
-    let child = Tree::attach_child(root.clone(), Node::new(1));
-    tree.remove_subtree(child.clone());
+    let child = Tree::attach_child(&root, Node::new(1));
+    tree.remove_subtree(&child);
     assert!(child.read().unwrap().parent.is_none());
     assert!(child.read().unwrap().children.is_empty());
     assert!(root.read().unwrap().children.is_empty());
@@ -47,11 +77,11 @@ fn test_remove_subree_with_two_layers() {
     let mut tree = Tree::new();
     let root = tree.create_and_set_root(0).unwrap();
     let child_node = Node::new(1);
-    let child = Tree::attach_child(root.clone(), child_node);
+    let child = Tree::attach_child(&root, child_node);
     let child_node = Node::new(2);
-    let child2 = Tree::attach_child(child.clone(), child_node);
+    let child2 = Tree::attach_child(&child, child_node);
 
-    tree.remove_subtree(child.clone());
+    tree.remove_subtree(&child);
 
     assert!(child.read().unwrap().parent.is_none());
     assert!(root.read().unwrap().get_children().is_empty());

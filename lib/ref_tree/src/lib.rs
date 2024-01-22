@@ -1,7 +1,9 @@
+#![warn(clippy::pedantic)]
+
 mod model {
     pub mod tree_mod {
-        pub mod tree;
         mod tests;
+        pub mod tree;
     }
     pub mod node_mod {
         pub mod node;
@@ -11,6 +13,6 @@ mod model {
 }
 
 // Reexport Tree & Node for convenience.
-pub use model::tree_mod::tree::Tree;
 pub use model::node_mod::node::Node;
 pub use model::node_mod::node_to_root_iterator::NodeToRootIterator;
+pub use model::tree_mod::tree::Tree;

@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 mod backend;
 
 use backend::disko_tree::DiskoTree;
@@ -7,7 +9,6 @@ fn create_disko_tree() -> &'static DiskoTree {
 }
 
 fn main() {
-
     let disko_tree = create_disko_tree();
     disko_tree.traverse();
 
@@ -16,9 +17,7 @@ fn main() {
 
     let root = { tree.read().unwrap().get_root().unwrap() };
 
-    let data = {
-        root.read().unwrap().data.clone()
-    };
+    let data = { root.read().unwrap().data.clone() };
 
     println!("Total size of .: {}", data.size);
 

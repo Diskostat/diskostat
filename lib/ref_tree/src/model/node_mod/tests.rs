@@ -1,5 +1,5 @@
 #[cfg(test)]
-use crate::{Tree, Node, NodeToRootIterator};
+use crate::{Node, NodeToRootIterator, Tree};
 
 #[test]
 fn test_node_new() {
@@ -43,15 +43,14 @@ fn test_node_child_writability() {
     assert_eq!(node.get_children().first().unwrap().read().unwrap().data, 2);
 }
 
-
 #[test]
 fn test_node_to_tree_iterator() {
     let mut tree = Tree::new();
     let root_node = tree.create_and_set_root(0).unwrap();
     let child_node = Node::new(1);
-    let child = Tree::attach_child(root_node.clone(), child_node);
-    let child2_node = Node::new(2);
-    let child2 = Tree::attach_child(child.clone(), child2_node);
+    let child = Tree::attach_child(&root_node, child_node);
+    let child_two_node = Node::new(2);
+    let child2 = Tree::attach_child(&child, child_two_node);
 
     let mut iter = NodeToRootIterator::new(child2);
 

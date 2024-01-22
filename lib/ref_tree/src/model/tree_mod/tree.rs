@@ -19,7 +19,7 @@ pub struct Tree<T> {
     /// RwLock
     /// - ability to read from one thread, but write from other without blocking
     /// - BE writes when adding size from nodes under root, FE reads with tick/whenever
-    pub(crate) root: Option<Arc<RwLock<Node<T>>>>
+    pub(crate) root: Option<Arc<RwLock<Node<T>>>>,
 }
 
 impl<T> Default for Tree<T> {
@@ -30,6 +30,7 @@ impl<T> Default for Tree<T> {
 
 impl<T> Tree<T> {
     /// Creates an empty tree.
+    #[must_use]
     pub fn new() -> Self {
         Self { root: None }
     }
@@ -40,67 +41,85 @@ impl<T> Tree<T> {
         root_arc
     }
 
-
     /// Creates node from given data and puts it to the root of the tree.
     /// Returns: None if tree already has a root node.
     /// Returns: Created node from given data.
     pub fn create_and_set_root(&mut self, data: T) -> Option<Arc<RwLock<Node<T>>>> {
-        if self.root.is_some() { return None }
+        if self.root.is_some() {
+            return None;
+        }
         let root_node = Node::new(data);
         let root_arc = Arc::new(RwLock::new(root_node));
         self.root = Some(root_arc.clone());
         Some(root_arc)
     }
 
+    #[must_use]
     pub fn get_root(&self) -> Option<Arc<RwLock<Node<T>>>> {
         self.root.clone()
     }
-
 
     /// Attaches given node (child) to tree in which parent is stored.
     ///
     /// Connects both parent -> child and child -> parent.
     ///
     /// Returns newly created space in which child now is stored.
-    pub fn attach_child(parent: Arc<RwLock<Node<T>>>, child: Node<T>) -> Arc<RwLock<Node<T>>> {
+    ///
+    /// # Panics
+    /// When could not write to parrent, see `RwLock`.
+    pub fn attach_child(parent: &Arc<RwLock<Node<T>>>, child: Node<T>) -> Arc<RwLock<Node<T>>> {
         // Connect child to parent.
         let mut child = child;
-        child.parent = Some(Arc::downgrade(&parent));
+        child.parent = Some(Arc::downgrade(parent));
 
         // Borrow parent for writing, create and attach child.
         let child = {
             let mut parent = parent
                 .write()
-                .expect("Could not write to parrent while attaching child");
+                .expect("Could not write to parent while attaching child");
 
             parent.attach_child(child)
         };
 
-        // Return newly created and connect node.
+        // Return newly created and connected node.
         child
     }
-
 
     /// Data/node will be freed from memory when the callee drops the
     /// reference if last (see Arc).  This function just drops the
     /// reference of the parent of this tree and sets root to node if
     /// the node is the root of this tree.
-    pub fn remove_subtree(&mut self, node: Arc<RwLock<Node<T>>>) {
+    ///
+    /// # Panics
+    ///
+    /// When could not read the node given, when asking for parent,
+    /// see `RwLock`.
+    ///
+    /// When tree's root == node given and given node's
+    /// parent is incosistnet.
+    pub fn remove_subtree(&mut self, node: &Arc<RwLock<Node<T>>>) {
         // TODO: check if tree has root before removing node?
 
         if let Some(root) = self.root.clone() {
-            match (Arc::ptr_eq(&root, &node), node.clone().read().unwrap().parent.is_none()) {
-                (true, true) => {
+            match (
+                Arc::ptr_eq(&root, node),
+                node.clone()
+                    .read()
+                    .expect("Could not read node while removing subtree.")
+                    .parent
+                    .clone(),
+            ) {
+                (true, None) => {
                     self.root = None;
                     return;
-                },
-                (true, false) => {
+                }
+                (true, Some(_)) => {
                     panic!("Node to be removed is a root of tree, but has a parent. This should not happen.");
-                },
-                (false, true) => {
+                }
+                (false, None) => {
                     panic!("Node to be removed is not a root of tree, but has no parent. This should not happen.");
-                },
-                (false, false) => {
+                }
+                (false, Some(_)) => {
                     // Continue.
                 }
             }
@@ -112,19 +131,20 @@ impl<T> Tree<T> {
         };
 
         let parent = parent
-            .upgrade().expect("Could not upgrade parent of node to be removed. This should not happen.");
-        Tree::remove_children(parent, node.clone());
+            .upgrade()
+            .expect("Could not upgrade parent of node to be removed. This should not happen.");
+        Tree::remove_children(&parent, node);
 
         // Node clean up.
         let mut node = node.write().unwrap();
         node.parent = None;
     }
 
-    fn remove_children(parent: Arc<RwLock<Node<T>>>, child_to_remove: Arc<RwLock<Node<T>>>) {
+    fn remove_children(parent: &Arc<RwLock<Node<T>>>, child_to_remove: &Arc<RwLock<Node<T>>>) {
         let index = {
             let mut index_ret = 0;
             for (index, child) in parent.write().unwrap().children.iter().enumerate() {
-                if Arc::ptr_eq(child, &child_to_remove) {
+                if Arc::ptr_eq(child, child_to_remove) {
                     index_ret = index;
                     break;
                 }
@@ -132,16 +152,15 @@ impl<T> Tree<T> {
             index_ret
         };
         let mut parent = parent
-            .write().expect("Could not write to parent while removing child");
+            .write()
+            .expect("Could not write to parent while removing child");
         parent.children.remove(index);
     }
-
 
     pub fn iter_to_root_from_node(node: Arc<RwLock<Node<T>>>) -> NodeToRootIterator<T> {
         NodeToRootIterator::new(node)
     }
 }
-
 
 // TODO integrate in main crate
 // impl Tree<EntryNode> {

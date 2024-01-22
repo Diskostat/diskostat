@@ -1,4 +1,7 @@
-use std::{sync::{Arc, RwLock, Weak}, fmt::Debug};
+use std::{
+    fmt::Debug,
+    sync::{Arc, RwLock, Weak},
+};
 
 #[derive(Debug)]
 pub struct Node<T> {
@@ -10,13 +13,17 @@ pub struct Node<T> {
 
     /// None -> root node
     /// Weak -> prevent reference cycles
-    pub(crate) parent: Option<Weak<RwLock<Node<T>>>>
+    pub(crate) parent: Option<Weak<RwLock<Node<T>>>>,
 }
 
 impl<T> Node<T> {
     /// Creates not connected Node.
     pub fn new(data: T) -> Self {
-        Self { children: vec![], data, parent: None }
+        Self {
+            children: vec![],
+            data,
+            parent: None,
+        }
     }
 
     /// Attaches given node to this node as a child.

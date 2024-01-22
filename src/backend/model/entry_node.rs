@@ -1,7 +1,6 @@
-use std::{fs, path::Path, fmt::Display};
+use std::{fmt::Display, fs, path::Path};
 
 use super::entry_type::EntryType;
-
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
@@ -27,13 +26,17 @@ impl EntryNode {
     pub(crate) fn new_dir(path: &Path) -> Option<Self> {
         let Ok(metadata) = fs::metadata(path) else {
             dbg!("Failed to get metadata from path: ", path);
-            return None
+            return None;
         };
-        if !metadata.is_dir() { return None; }
+        if !metadata.is_dir() {
+            return None;
+        }
 
-        let name = path.file_name()
+        let name = path
+            .file_name()
             .unwrap_or("no file_name".as_ref())
-            .to_str().unwrap_or("no str")
+            .to_str()
+            .unwrap_or("no str")
             .to_string();
 
         Some(Self {
@@ -45,5 +48,4 @@ impl EntryNode {
             metadata,
         })
     }
-
 }
