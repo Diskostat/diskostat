@@ -148,6 +148,6 @@ fn render_top_panel(frame: &mut Frame, area: Rect, _state: &mut AppState, block:
 }
 
 fn render_bottom_panel(frame: &mut Frame, area: Rect, _state: &mut AppState, block: Block<'_>) {
-    let commands = Paragraph::new("Commands: q(uit)").block(block);
+    let commands = Paragraph::new("Commands: q(uit), s(elect)").block(block);
     frame.render_widget(commands, area);
 }
