@@ -4,6 +4,7 @@ use super::entry_type::EntryType;
 
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub(crate) struct EntryNode {
     pub(crate) name: String,
     pub(crate) size: u64,
@@ -35,7 +36,7 @@ impl EntryNode {
             .to_str().unwrap_or("no str")
             .to_string();
 
-        return Some(Self {
+        Some(Self {
             name,
             // TODO: adjust!
             size: 0,

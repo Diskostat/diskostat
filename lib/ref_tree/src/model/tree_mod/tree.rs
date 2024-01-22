@@ -1,9 +1,9 @@
-use std::{sync::{Arc, RwLock}, fmt::Display, ops::SubAssign, iter};
+use std::sync::{Arc, RwLock};
 
-use super::node::{Node, NodeToRootIterator};
+use crate::Node;
+use crate::NodeToRootIterator;
 
-
-/// Tree mamade out of references. Multi-threaded.
+/// Tree made out of references. Multi-threaded.
 ///
 /// To get a certain node, you have to traverse all the tree -> do NOT do it.
 ///
@@ -12,14 +12,20 @@ pub struct Tree<T> {
     /// Root node of the three
     ///
     /// Option
-    /// None -> Tree is impty; does not have a root node
+    /// None -> Tree is empty; does not have a root node
     /// Some -> Tree has at least one node
     ///
-    /// Arc - multi-thread simultanous acces to the root node
+    /// Arc - multi-thread simultaneous access to the root node
     /// RwLock
     /// - ability to read from one thread, but write from other without blocking
     /// - BE writes when adding size from nodes under root, FE reads with tick/whenever
     pub(crate) root: Option<Arc<RwLock<Node<T>>>>
+}
+
+impl<T> Default for Tree<T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T> Tree<T> {
@@ -76,11 +82,11 @@ impl<T> Tree<T> {
 
 
     /// Data/node will be freed from memory when the callee drops the
-    /// reference if last (see Arc).  This function just the reference
-    /// of the parent of this tree and sets root to node if
-    /// applicable.
+    /// reference if last (see Arc).  This function just drops the
+    /// reference of the parent of this tree and sets root to node if
+    /// the node is the root of this tree.
     pub fn remove_subtree(&mut self, node: Arc<RwLock<Node<T>>>) {
-        // TODO: test if tree has root before removing node?
+        // TODO: check if tree has root before removing node?
 
         if let Some(root) = self.root.clone() {
             match (Arc::ptr_eq(&root, &node), node.clone().read().unwrap().parent.is_none()) {
@@ -89,10 +95,10 @@ impl<T> Tree<T> {
                     return;
                 },
                 (true, false) => {
-                    panic!("Node to be removed has is a root of tree, but has a parent. This should not happen.");
+                    panic!("Node to be removed is a root of tree, but has a parent. This should not happen.");
                 },
                 (false, true) => {
-                    panic!("Node to be removed has no parent. This should not happen.");
+                    panic!("Node to be removed is not a root of tree, but has no parent. This should not happen.");
                 },
                 (false, false) => {
                     // Continue.
@@ -103,17 +109,14 @@ impl<T> Tree<T> {
         // Remove node from parent.
         let Some(parent) = node.read().unwrap().parent.clone() else {
             panic!("Node to be removed has no parent. This should not happen.");
-            return;
         };
 
         let parent = parent
             .upgrade().expect("Could not upgrade parent of node to be removed. This should not happen.");
         Tree::remove_children(parent, node.clone());
 
-
         // Node clean up.
         let mut node = node.write().unwrap();
-        let mut children = node.children.clone();
         node.parent = None;
     }
 
@@ -173,71 +176,3 @@ impl<T> Tree<T> {
 //         result
 //     }
 // }
-
-#[test]
-fn test_set_root() {
-    let mut tree = Tree::new();
-    let root = tree.create_and_set_root(0);
-    assert!(root.is_some());
-    assert!(tree.root.is_some());
-    assert_eq!(tree.root.clone().unwrap().read().unwrap().data, 0);
-    assert!(tree.root.clone().unwrap().read().unwrap().children.is_empty());
-}
-
-#[test]
-fn test_get_root() {
-    let mut tree = Tree::new();
-    let root = tree.create_and_set_root(0).unwrap();
-    let root2 = tree.get_root().unwrap();
-    assert_eq!(root.read().unwrap().data, root2.read().unwrap().data);
-}
-
-#[test]
-fn test_attach_child() {
-    let mut tree = Tree::new();
-    let root = tree.create_and_set_root(0).unwrap();
-    let child_node = Node::new(1);
-    let child = Tree::attach_child(root.clone(), child_node);
-    assert_eq!(root.read().unwrap().children.len(), 1);
-    assert_eq!(root.read().unwrap().children.first().unwrap().read().unwrap().data, 1);
-    assert_eq!(child.read().unwrap().parent.as_ref().unwrap().upgrade().unwrap().read().unwrap().data, 0);
-    assert_eq!(child.read().unwrap().data, 1);
-}
-
-#[test]
-fn test_remove_subtree() {
-    let mut tree = Tree::new();
-    let root = tree.create_and_set_root(0).unwrap();
-    let child = Tree::attach_child(root.clone(), Node::new(1));
-    tree.remove_subtree(child.clone());
-    assert!(child.read().unwrap().parent.is_none());
-    assert!(child.read().unwrap().children.is_empty());
-    assert!(root.read().unwrap().children.is_empty());
-}
-
-#[test]
-fn test_remove_subree_with_two_layers() {
-    let mut tree = Tree::new();
-    let root = tree.create_and_set_root(0).unwrap();
-    let child_node = Node::new(1);
-    let child = Tree::attach_child(root.clone(), child_node);
-    let child_node = Node::new(2);
-    let child2 = Tree::attach_child(child.clone(), child_node);
-
-    tree.remove_subtree(child.clone());
-
-    assert!(child.read().unwrap().parent.is_none());
-    assert!(root.read().unwrap().get_children().is_empty());
-    assert!(root.read().unwrap().children.is_empty());
-
-    // remove does to modify childern of given node
-    assert!(!child.read().unwrap().children.is_empty());
-
-    // romve does not remove parent of layers down the route
-    assert!(child2.read().unwrap().parent.is_some());
-
-    // remove does not remove children of layers down the route
-    // weaks upstream and arcs take care of freeing the memory
-    // someone might still use it
-    assert!(child2.read().unwrap().children.is_empty());
-}

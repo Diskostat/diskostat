@@ -48,7 +48,7 @@ impl DirEntryToEntryNodeHelper {
         if dir_entry.file_type.is_dir() {
             return EntryType::Directory;
         }
-        return EntryType::File(FileType::Text);
+        EntryType::File(FileType::Text)
     }
 
     fn extract_metadata(dir_entry: &jwalk::DirEntry<CustomJWalkClientState>) -> Option<Metadata> {

@@ -1,23 +1,14 @@
 use std::{
-    error::Error,
-    fmt::{Debug, Formatter},
-    fs,
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex, RwLock}, ops::Deref, borrow::BorrowMut,
+    path::Path,
+    sync::{Arc, RwLock}
 };
 
 use jwalk::{DirEntry, Parallelism::RayonNewPool, WalkDirGeneric};
 
-
-
-
-use super::{
-    model::{
+use super::model::{
         entry_node::EntryNode,
         tree_walk_state::{CustomJWalkClientState, TreeWalkState},
-    },
-    types::*,
-};
+    };
 
 use ref_tree::{Tree, Node};
 
@@ -25,16 +16,14 @@ pub struct DiskoTree {
     tree: Arc<RwLock<Tree<EntryNode>>>,
 }
 
-type DirEntryResult = &'static mut Result<DirEntry<(TreeWalkState, ())>, dyn Error>;
-
 impl DiskoTree {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             tree: Arc::new(RwLock::new(Tree::new())),
         }
     }
 
-    pub fn traverse(&'static self) {
+    pub(crate) fn traverse(&'static self) {
         let walk_dir = WalkDirGeneric::<(TreeWalkState, ())>::new(".")
             .sort(true)
             .parallelism(RayonNewPool(10))
@@ -45,18 +34,15 @@ impl DiskoTree {
 
         let mut iter = walk_dir.into_iter();
 
-        while let Some(Ok(item)) = iter.next() {
-            // println!("{:?}", item.file_name);
-
-        }
+        while iter.next().is_some() { }
     }
 
     fn process_dir(
         &self,
-        depth: Option<usize>,
+        _depth: Option<usize>,
         dir_path: &Path,
         state: &mut TreeWalkState,
-        children: &mut Vec<jwalk::Result<DirEntry<CustomJWalkClientState>>>,
+        children: &mut [jwalk::Result<DirEntry<CustomJWalkClientState>>],
     ) {
 
         // Create entry node from jwalks
@@ -74,19 +60,17 @@ impl DiskoTree {
             .filter_map(|dir_entry_result|
                         dir_entry_result.as_ref().ok()
             )
-            .filter(|dir_entry| dir_entry.file_type.is_file())
+            .filter(|dir_entry|
+                    dir_entry.file_type.is_file()
+            )
             .filter_map(|dir_entry|
                  EntryNode::new(dir_entry.clone())
             )
             .map(Node::new)
             .for_each(|node| {
-                // println!("reading size from: {}", node.data.name);
                 size += 1;
-
                 dir_node.attach_child(node);
         });
-
-        // println!("{:12} | {}", size, dir_node.name);
 
         dir_node.data.size = size;
 
