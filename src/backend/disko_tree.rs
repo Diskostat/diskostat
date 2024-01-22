@@ -17,10 +17,14 @@ pub struct DiskoTree {
 }
 
 impl DiskoTree {
-    pub(crate) fn new() -> Self {
+    fn new() -> Self {
         Self {
             tree: Arc::new(RwLock::new(Tree::new())),
         }
+    }
+
+    pub(crate) fn new_static() -> &'static DiskoTree {
+        Box::leak(Box::new(DiskoTree::new()))
     }
 
     pub(crate) fn traverse(&'static self) {
