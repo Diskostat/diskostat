@@ -80,7 +80,7 @@ fn render_left_panel(frame: &mut Frame, area: Rect, state: &mut AppState, block:
                     if state.main_table.is_selected(index) {
                         "▌"
                     } else {
-                        " "
+                        ""
                     },
                     Style::default().fg(Color::LightGreen),
                 )),
