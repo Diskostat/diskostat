@@ -69,18 +69,28 @@ fn get_blocks<'a>() -> [Block<'a>; 4] {
 fn render_left_panel(frame: &mut Frame, area: Rect, state: &mut AppState, block: Block<'_>) {
     let highlight_style = Style::default().bg(Color::Yellow).fg(Color::Black);
 
-    let rows = state.main_table.items.iter().map(|data| {
-        Row::new(vec![Cell::from(Text::from(
-            data.file_name().unwrap().to_str().unwrap(),
-        ))])
-    });
+    let rows = state
+        .main_table
+        .items
+        .iter()
+        .enumerate()
+        .map(|(index, data)| {
+            Row::new(vec![
+                Cell::from(Span::styled(
+                    if state.main_table.is_selected(index) {
+                        "▌"
+                    } else {
+                        " "
+                    },
+                    Style::default().fg(Color::LightGreen),
+                )),
+                Cell::from(Text::from(data.file_name().unwrap().to_str().unwrap())),
+            ])
+        });
 
-    let table = Table::new(
-        rows,
-        [Constraint::Percentage(50), Constraint::Percentage(50)],
-    )
-    .highlight_style(highlight_style)
-    .block(block);
+    let table = Table::new(rows, [Constraint::Length(1), Constraint::Min(10)])
+        .highlight_style(highlight_style)
+        .block(block);
 
     frame.render_stateful_widget(table, area, &mut state.main_table.state);
 }

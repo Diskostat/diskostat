@@ -3,6 +3,7 @@ use ratatui::widgets::TableState;
 pub struct StatefulTable<T> {
     pub items: Vec<T>,
     pub state: TableState,
+    pub selected: Vec<usize>,
 }
 
 impl<T> StatefulTable<T> {
@@ -10,6 +11,7 @@ impl<T> StatefulTable<T> {
         StatefulTable {
             items,
             state: TableState::default(),
+            selected: Vec::default(),
         }
     }
 
@@ -17,11 +19,32 @@ impl<T> StatefulTable<T> {
         StatefulTable {
             items,
             state: TableState::default().with_selected(focused),
+            selected: Vec::default(),
+        }
+    }
+
+    pub fn toggle_selection(&mut self, index: usize) {
+        if self.selected.contains(&index) {
+            self.selected.retain(|i| *i != index);
+        } else {
+            self.selected.push(index);
         }
     }
 
     pub fn focused(&self) -> Option<&T> {
         self.state.selected().and_then(|i| self.items.get(i))
+    }
+
+    pub fn focused_index(&self) -> Option<usize> {
+        self.state.selected()
+    }
+
+    pub fn is_selected(&self, index: usize) -> bool {
+        self.selected.contains(&index)
+    }
+
+    pub fn clear_selected(&mut self) {
+        self.selected.clear();
     }
 
     pub fn focus_next(&mut self) {

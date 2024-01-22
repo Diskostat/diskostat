@@ -22,6 +22,7 @@ pub enum Action {
     FocusLastItem,
     EnterFocusedDirectory,
     EnterParentDirectory,
+    ToggleSelection,
     Resize(u16, u16),
     Quit,
 }
@@ -165,8 +166,13 @@ impl App {
                     self.state.main_table.focus_last();
                     self.update_focus()?;
                 }
-                Action::EnterFocusedDirectory => (),
-                Action::EnterParentDirectory => (),
+                Action::ToggleSelection => {
+                    if let Some(focused) = self.state.main_table.focused_index() {
+                        self.state.main_table.toggle_selection(focused);
+                    };
+                }
+                Action::EnterFocusedDirectory => self.state.main_table.clear_selected(),
+                Action::EnterParentDirectory => self.state.main_table.clear_selected(),
                 Action::Resize(w, h) => self.resize(w, h)?,
             }
         }
