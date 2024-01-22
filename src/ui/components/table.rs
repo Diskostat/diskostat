@@ -24,6 +24,9 @@ impl<T> StatefulTable<T> {
     }
 
     pub fn toggle_selection(&mut self, index: usize) {
+        if index > self.items.len() {
+            return;
+        }
         if self.selected.contains(&index) {
             self.selected.retain(|i| *i != index);
         } else {
