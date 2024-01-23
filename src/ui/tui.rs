@@ -9,7 +9,7 @@ use crossterm::{
 use super::{
     app::{AppState, CrosstermTerminal},
     event_handling::EventHandler,
-    render,
+    renderer::Renderer,
 };
 
 /// Representation of a terminal user interface.
@@ -21,12 +21,18 @@ pub struct Tui {
     pub terminal: CrosstermTerminal,
     /// Terminal event handler.
     pub events: EventHandler,
+    /// Widget renderer.
+    pub renderer: Renderer,
 }
 
 impl Tui {
     /// Constructs a new instance of [`Tui`].
-    pub fn new(terminal: CrosstermTerminal, events: EventHandler) -> Self {
-        Self { terminal, events }
+    pub fn new(terminal: CrosstermTerminal, events: EventHandler, renderer: Renderer) -> Self {
+        Self {
+            terminal,
+            events,
+            renderer,
+        }
     }
 
     /// Initializes the terminal interface.
@@ -76,7 +82,8 @@ impl Tui {
 
     /// Draw the terminal interface by rendering the widgets.
     pub fn draw(&mut self, state: &mut AppState) -> Result<()> {
-        self.terminal.draw(|frame| render::render(state, frame))?;
+        self.terminal
+            .draw(|frame| self.renderer.render(state, frame))?;
         Ok(())
     }
 }

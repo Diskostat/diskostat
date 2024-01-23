@@ -4,8 +4,8 @@ use std::collections::HashSet;
 
 pub struct StatefulTable<T> {
     pub items: Vec<T>,
-    pub state: TableState,
     pub selected: HashSet<usize>,
+    pub state: TableState,
 }
 
 impl<T> StatefulTable<T> {
@@ -37,6 +37,10 @@ impl<T> StatefulTable<T> {
 
     pub fn focused(&self) -> Option<&T> {
         self.state.selected().and_then(|i| self.items.get(i))
+    }
+
+    pub fn is_focused(&self, index: usize) -> bool {
+        self.state.selected() == Some(index)
     }
 
     pub fn focused_index(&self) -> Option<usize> {

@@ -3,9 +3,11 @@ use std::{fs, path::PathBuf, sync::mpsc};
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
 use super::{
+    color_theme::ColorTheme,
     components::{confirm_delete::ConfirmDeletePopup, table::StatefulTable},
     event_handling::{Event, EventHandler},
     key_handling::map_key_events,
+    renderer,
     tui::Tui,
 };
 
@@ -69,6 +71,9 @@ impl App {
         let (sender, receiver) = mpsc::channel();
         let events = EventHandler::new(tick_rate, render_rate, sender, receiver);
 
+        let renderer = renderer::Renderer::new(ColorTheme::default());
+        let tui = Tui::new(terminal, events, renderer);
+
         let parent = PathBuf::from(".");
         let paths = fs::read_dir(&parent)?
             .map(|file| file.unwrap().path())
@@ -77,7 +82,6 @@ impl App {
         let first = paths.first().unwrap();
         let preview = Self::get_preview(first)?;
 
-        let tui = Tui::new(terminal, events);
         let state = AppState {
             should_quit: false,
             parent_dir: Some(parent),
