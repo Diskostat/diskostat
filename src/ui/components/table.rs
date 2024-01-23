@@ -20,7 +20,18 @@ impl<T> StatefulTable<T> {
         }
     }
 
-    pub fn focused(&self) -> Option<&T> {
+    pub fn toggle_selection(&mut self, index: usize) {
+        if index > self.items.len() {
+            return;
+        }
+        if self.selected.contains(&index) {
+            self.selected.retain(|i| *i != index);
+        } else {
+            self.selected.push(index);
+        }
+    }
+
+    pub fn focused_item(&self) -> Option<&T> {
         self.state.selected().and_then(|i| self.items.get(i))
     }
 

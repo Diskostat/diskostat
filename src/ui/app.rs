@@ -3,9 +3,11 @@ use std::{fs, path::PathBuf, sync::mpsc};
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
 use super::{
+    color_theme::ColorTheme,
     components::table::StatefulTable,
     event_handling::{Event, EventHandler},
     key_handling::map_key_events,
+    renderer::Renderer,
     tui::Tui,
 };
 
@@ -57,6 +59,9 @@ impl App {
         let (sender, receiver) = mpsc::channel();
         let events = EventHandler::new(tick_rate, render_rate, sender, receiver);
 
+        let renderer = Renderer::new(ColorTheme::default());
+        let tui = Tui::new(terminal, events, renderer);
+
         let parent = PathBuf::from(".");
         let paths = fs::read_dir(&parent)?
             .map(|file| file.unwrap().path())
@@ -65,7 +70,6 @@ impl App {
         let first = paths.first().unwrap();
         let preview = Self::get_preview(first)?;
 
-        let tui = Tui::new(terminal, events);
         let state = AppState {
             should_quit: false,
             parent_dir: Some(parent),
@@ -138,7 +142,7 @@ impl App {
     }
 
     fn update_focus(&mut self) -> Result<()> {
-        let focused = self.state.main_table.focused().unwrap().clone();
+        let focused = self.state.main_table.focused_item().unwrap().clone();
         self.state.preview = Self::get_preview(&focused)?;
         Ok(())
     }

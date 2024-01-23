@@ -69,11 +69,24 @@ fn get_blocks<'a>() -> [Block<'a>; 4] {
 fn render_left_panel(frame: &mut Frame, area: Rect, state: &mut AppState, block: Block<'_>) {
     let highlight_style = Style::default().bg(Color::Yellow).fg(Color::Black);
 
-    let rows = state.main_table.items.iter().map(|data| {
-        Row::new(vec![Cell::from(Text::from(
-            data.file_name().unwrap().to_str().unwrap(),
-        ))])
-    });
+    let rows = state
+        .main_table
+        .items
+        .iter()
+        .enumerate()
+        .map(|(index, data)| {
+            Row::new(vec![
+                Cell::from(Span::styled(
+                    if state.main_table.is_selected(index) {
+                        "▌"
+                    } else {
+                        ""
+                    },
+                    Style::default().fg(Color::LightGreen),
+                )),
+                Cell::from(Text::from(data.file_name().unwrap().to_str().unwrap())),
+            ])
+        });
 
     let table = Table::new(
         rows,
