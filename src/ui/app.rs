@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf, sync::mpsc};
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
 use super::{
-    components::table::StatefulTable,
+    components::{confirm_delete::ConfirmDeletePopup, table::StatefulTable},
     event_handling::{Event, EventHandler},
     key_handling::map_key_events,
     tui::Tui,
@@ -16,12 +16,17 @@ pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBacken
 /// All possible application actions.
 pub enum Action {
     Tick,
+    ShowMainScreen,
     FocusNextItem,
     FocusPreviousItem,
     FocusFirstItem,
     FocusLastItem,
     EnterFocusedDirectory,
     EnterParentDirectory,
+    ShowConfirmDeletePopup,
+    ConfirmDelete,
+    DeletePopupTab,
+    DeletePopupSelect,
     ToggleSelection,
     Resize(u16, u16),
     Quit,
@@ -34,12 +39,18 @@ pub enum Preview {
     EmptyDirectory,
 }
 
+pub enum AppFocus {
+    MainScreen,
+    ConfirmDeletePopup(ConfirmDeletePopup),
+}
+
 /// Application state.
 pub struct AppState {
     pub should_quit: bool,
     pub parent_dir: Option<PathBuf>,
     pub main_table: StatefulTable<PathBuf>,
     pub preview: Preview,
+    pub focus: AppFocus,
 }
 
 /// Application.
@@ -72,6 +83,7 @@ impl App {
             parent_dir: Some(parent),
             main_table: StatefulTable::with_focused(paths, Some(0)),
             preview,
+            focus: AppFocus::MainScreen,
         };
 
         Ok(Self { state, tui })
@@ -114,7 +126,7 @@ impl App {
             }
 
             // Handle events.
-            let action = map_key_events(event);
+            let action = map_key_events(event, &self.state.focus);
 
             self.update(action)?;
         }
@@ -150,6 +162,7 @@ impl App {
             match action {
                 Action::Tick => self.tick(),
                 Action::Quit => self.quit(),
+                Action::ShowMainScreen => self.state.focus = AppFocus::MainScreen,
                 Action::FocusNextItem => {
                     self.state.main_table.focus_next();
                     self.update_focus()?;
@@ -165,6 +178,26 @@ impl App {
                 Action::FocusLastItem => {
                     self.state.main_table.focus_last();
                     self.update_focus()?;
+                }
+                Action::ShowConfirmDeletePopup => {
+                    self.state.focus = AppFocus::ConfirmDeletePopup(ConfirmDeletePopup::new(true));
+                }
+                Action::DeletePopupTab => {
+                    if let AppFocus::ConfirmDeletePopup(popup) = &mut self.state.focus {
+                        popup.tab();
+                    }
+                }
+                Action::DeletePopupSelect => {
+                    if let AppFocus::ConfirmDeletePopup(popup) = &mut self.state.focus {
+                        if popup.selected_yes() {
+                            // TODO: Implement deletion.
+                        }
+                        self.state.focus = AppFocus::MainScreen;
+                    }
+                }
+                Action::ConfirmDelete => {
+                    // TODO: Implement deletion.
+                    self.state.focus = AppFocus::MainScreen;
                 }
                 Action::ToggleSelection => {
                     if let Some(focused) = self.state.main_table.focused_index() {

@@ -2,12 +2,12 @@ use std::{path::PathBuf, rc::Rc};
 
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Cell, Paragraph, Row, Table},
+    widgets::{block::Title, Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
 
 use super::{
-    app::{AppState, Preview},
-    components::table::StatefulTable,
+    app::{AppFocus, AppState, Preview},
+    components::{confirm_delete::ConfirmDeletePopup, table::StatefulTable},
 };
 
 /// Renders the user interface.
@@ -24,6 +24,14 @@ pub fn render(state: &mut AppState, frame: &mut Frame) {
 
     render_left_panel(frame, middle_chunks[0], state, left_block);
     render_right_panel(frame, middle_chunks[1], state, right_block);
+
+    match &state.focus {
+        AppFocus::ConfirmDeletePopup(popup) => {
+            let popup_area = centered_rect(30, 30, frame.size());
+            render_confirm_delete_popup(frame, popup_area, popup);
+        }
+        AppFocus::MainScreen => (),
+    }
 }
 
 fn get_main_layout(area: Rect) -> Rc<[Rect]> {
@@ -67,7 +75,10 @@ fn get_blocks<'a>() -> [Block<'a>; 4] {
 }
 
 fn render_left_panel(frame: &mut Frame, area: Rect, state: &mut AppState, block: Block<'_>) {
-    let highlight_style = Style::default().bg(Color::Yellow).fg(Color::Black);
+    let highlight_style = match &mut state.focus {
+        AppFocus::MainScreen => Style::default().bg(Color::Yellow).fg(Color::Black),
+        AppFocus::ConfirmDeletePopup(_) => Style::default().hidden(),
+    };
 
     let rows = state
         .main_table
@@ -150,4 +161,77 @@ fn render_top_panel(frame: &mut Frame, area: Rect, _state: &mut AppState, block:
 fn render_bottom_panel(frame: &mut Frame, area: Rect, _state: &mut AppState, block: Block<'_>) {
     let commands = Paragraph::new("Commands: q(uit), s(elect)").block(block);
     frame.render_widget(commands, area);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
+}
+
+fn render_confirm_delete_popup(
+    frame: &mut Frame,
+    area: Rect,
+    confirm_delete_popup: &ConfirmDeletePopup,
+) {
+    frame.render_widget(Clear, area);
+    let block = Block::default()
+        .title(Title::from("Confirm delete"))
+        .title_style(Style::default().fg(Color::Yellow))
+        .title_alignment(Alignment::Center)
+        .borders(Borders::ALL);
+
+    frame.render_widget(block, area);
+
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .margin(1)
+        .split(area);
+    let text_area = layout[0];
+
+    let text = Paragraph::new("Are you sure you want to delete ...?")
+        .wrap(Wrap { trim: true })
+        .alignment(Alignment::Center);
+
+    frame.render_widget(text, text_area);
+
+    let tabs_area = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+        ])
+        .split(layout[1]);
+
+    let yes_area = tabs_area[1];
+    let no_area = tabs_area[2];
+
+    let mut yes = Span::from("Yes");
+    let mut no = Span::from("No");
+
+    if confirm_delete_popup.selected_yes() {
+        yes = yes.fg(Color::Yellow);
+    } else {
+        no = no.fg(Color::Yellow);
+    }
+
+    frame.render_widget(Paragraph::new(yes).alignment(Alignment::Center), yes_area);
+    frame.render_widget(Paragraph::new(no).alignment(Alignment::Center), no_area);
 }
