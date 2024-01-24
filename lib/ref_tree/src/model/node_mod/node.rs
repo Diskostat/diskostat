@@ -37,7 +37,11 @@ where
         self.children
             .iter()
             .enumerate()
-            .map(|(i, c)| (c.clone().read().unwrap().data.clone(), i))
+            .map(|(i, c)| {
+                let child = c.clone();
+                let child_read = child.read().unwrap();
+                (child_read.data.clone(), i)
+            })
             .collect()
     }
 }
