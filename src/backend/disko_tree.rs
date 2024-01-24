@@ -8,7 +8,7 @@ use jwalk::{DirEntry, Parallelism::RayonNewPool, WalkDirGeneric};
 
 use super::model::{
     entry_node::EntryNode,
-    tree_walk_state::{CustomJWalkClientState, TreeWalkState},
+    tree_walk_state::{CustomJWalkClientState, TreeWalkAncestor, TreeWalkState},
 };
 
 use ref_tree::{Node, Tree};
@@ -41,7 +41,8 @@ impl DiskoTree {
         let walk_dir = WalkDirGeneric::<(TreeWalkState, ())>::new(self.root_path.clone())
             .sort(true)
             .parallelism(RayonNewPool(10))
-            .root_read_dir_state(TreeWalkState::Tree(self.tree.clone()))
+            .skip_hidden(false)
+            .root_read_dir_state(TreeWalkState::new(self.tree.clone()))
             .process_read_dir(|depth, dir_path, state, children| {
                 Self::process_dir(depth, dir_path, state, children);
             });
@@ -70,11 +71,10 @@ impl DiskoTree {
             return;
         };
 
+        let mut size = dir_node.metadata.len();
+
         // Create node on tree.
         let node = Self::attach_to_tree(state, dir_node);
-
-        // Count size of file children.
-        let mut size = 0;
 
         children
             .iter_mut()
@@ -88,8 +88,11 @@ impl DiskoTree {
             // Throw away when convertion failed.
             .filter_map(Result::ok)
             // Finaly process the file children.
-            .for_each(|child_node| {
-                size += 1;
+            .for_each(|mut child_node| {
+                if state.file_has_been_seen(&child_node.metadata) {
+                    child_node.size = 0;
+                }
+                size += child_node.size;
                 Tree::attach_child(&node, child_node);
             });
 
@@ -98,13 +101,13 @@ impl DiskoTree {
 
         // Move (i.e. not .clone()) reference to this node as a parent
         // for the next iteration.
-        *state = TreeWalkState::Parent(node);
+        state.ancestor = TreeWalkAncestor::Parent(node);
     }
 
     fn attach_to_tree(state: &TreeWalkState, node: EntryNode) -> Arc<RwLock<Node<EntryNode>>> {
-        match state {
-            TreeWalkState::Parent(parent) => Tree::attach_child(parent, node),
-            TreeWalkState::Tree(tree) => tree
+        match &state.ancestor {
+            TreeWalkAncestor::Parent(parent) => Tree::attach_child(parent, node),
+            TreeWalkAncestor::Tree(tree) => tree
                 .write()
                 .expect("Writing to tree failed when setting root.")
                 .create_node_and_set_root(node)
