@@ -12,7 +12,6 @@ pub fn map_key_events(event: Event, focus: &AppFocus) -> Option<Action> {
         Event::Tick => Some(Action::Tick),
         Event::Resize(w, h) => Some(Action::Resize(w, h)),
         Event::Key(key) => match key.code {
-            KeyCode::Char('q') => Some(Action::Quit),
             KeyCode::Char('c' | 'C') if key.modifiers == KeyModifiers::CONTROL => {
                 Some(Action::Quit)
             }
@@ -33,7 +32,7 @@ fn map_key_events_main_screen(event: Event) -> Option<Action> {
     let action = match event {
         Event::Tick => Action::Tick,
         Event::Key(key) => match key.code {
-            KeyCode::Esc => Action::Quit,
+            KeyCode::Esc | KeyCode::Char('q') => Action::Quit,
             KeyCode::Char('s') => Action::ToggleSelection,
             KeyCode::Char('d') => Action::ShowConfirmDeletePopup,
             KeyCode::Down | KeyCode::Char('j') => Action::FocusNextItem,
@@ -53,7 +52,7 @@ fn map_key_events_confirm_delete_popup(event: Event) -> Option<Action> {
     let action = match event {
         Event::Tick => Action::Tick,
         Event::Key(key) => match key.code {
-            KeyCode::Esc | KeyCode::Char('n') => Action::ShowMainScreen,
+            KeyCode::Esc | KeyCode::Char('n' | 'q') => Action::ShowMainScreen,
             KeyCode::Right | KeyCode::Char('l' | 'h') | KeyCode::Left => Action::DeletePopupTab,
             KeyCode::Enter => Action::DeletePopupSelect,
             KeyCode::Char('y') => Action::ConfirmDelete,
