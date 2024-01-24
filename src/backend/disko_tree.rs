@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use byte_unit::Byte;
 use jwalk::{DirEntry, Parallelism::RayonNewPool, WalkDirGeneric};
 
 use super::model::{
@@ -11,6 +12,11 @@ use super::model::{
 };
 
 use ref_tree::{Node, Tree};
+
+pub enum BackpropOperation {
+    Add,
+    Subtract,
+}
 
 pub struct DiskoTree {
     tree: Arc<RwLock<Tree<EntryNode>>>,
@@ -55,7 +61,7 @@ impl DiskoTree {
         let mut dir_node = Node::new(dir_node);
 
         // count size + attach children
-        let mut size = dir_node.data.size;
+        let size = dir_node.data.size;
 
         // println!("started reading dir: {}", dir_node.name);
 
@@ -66,7 +72,7 @@ impl DiskoTree {
             .filter_map(EntryNode::new)
             .map(Node::new)
             .for_each(|node| {
-                size += 1;
+                size.add(node.data.size);
                 dir_node.attach_child(node);
             });
 
@@ -75,7 +81,7 @@ impl DiskoTree {
         let node = Self::attach_to_tree(state, dir_node);
 
         // Propagate size to root.
-        Self::propagate_size_up(&node, size);
+        Self::backprop_size(&node, size, BackpropOperation::Add);
 
         // Move (i.e. not .clone()) reference to this node as a parent
         // for the next iteration.
@@ -92,17 +98,48 @@ impl DiskoTree {
         }
     }
 
-    fn propagate_size_up(node: &Arc<RwLock<Node<EntryNode>>>, size: u64) {
+    fn backprop_size(
+        node: &Arc<RwLock<Node<EntryNode>>>,
+        size: Byte,
+        operation: BackpropOperation,
+    ) {
         let iter = Tree::iter_to_root_from_node(node.clone());
-        for node in iter {
-            node.write()
-                .expect("Failed to write while propagating size up")
-                .data
-                .size += size;
-        }
+
+        iter.into_iter().for_each(|node| {
+            let node = node
+                .write()
+                .expect("Failed to write while backpropagating size");
+
+            match operation {
+                BackpropOperation::Add => node.data.size.add(size),
+                BackpropOperation::Subtract => node.data.size.subtract(size),
+            };
+        });
     }
 
     pub(crate) fn get_tree(&self) -> Arc<RwLock<Tree<EntryNode>>> {
         self.tree.clone()
+    }
+
+    pub(crate) fn delete_children(
+        parent: Arc<RwLock<Node<EntryNode>>>,
+        indexes: Vec<usize>,
+    ) -> std::io::Result<()> {
+        let read_parent = parent.clone().write().unwrap() else {
+            panic!("Failed to read parent while deleting children");
+        };
+
+        let mut deleted_size: Byte = Byte::from_u64(0);
+
+        indexes.into_iter().for_each(|index| {
+            let Some(child) = read_parent.get_children().get(index);
+
+            delete_entry(child)?.expect("Failed to delete entry ${}", child.path);
+            deleted_size += child.size();
+            read_parent.children().remove(index);
+        });
+
+        Self::backprop_size(&parent, deleted_size, BackpropOperation::Subtract);
+        Ok(())
     }
 }

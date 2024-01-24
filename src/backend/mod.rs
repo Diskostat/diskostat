@@ -6,3 +6,4 @@ pub(crate) mod model {
 }
 
 pub(crate) mod disko_tree;
+pub(crate) mod file_system_wrapper;

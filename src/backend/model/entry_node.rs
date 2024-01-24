@@ -1,12 +1,15 @@
 use std::{fmt::Display, fs, path::Path};
 
+use byte_unit::Byte;
+
 use super::entry_type::EntryType;
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub(crate) struct EntryNode {
+    pub(crate) path: String,
     pub(crate) name: String,
-    pub(crate) size: u64,
+    pub(crate) size: Byte,
     pub(crate) descendants_count: usize,
     pub(crate) entry_type: EntryType,
     pub(crate) metadata: fs::Metadata,
@@ -40,9 +43,9 @@ impl EntryNode {
             .to_string();
 
         Some(Self {
+            path: path.to_string_lossy().to_string(),
             name,
-            // TODO: adjust!
-            size: 0,
+            size: Byte::from_u64(0),
             descendants_count: 0,
             entry_type: EntryType::Directory,
             metadata,

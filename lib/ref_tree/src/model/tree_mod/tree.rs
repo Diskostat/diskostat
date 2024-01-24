@@ -8,7 +8,10 @@ use crate::NodeToRootIterator;
 /// To get a certain node, you have to traverse all the tree -> do NOT do it.
 ///
 #[derive(Debug)]
-pub struct Tree<T> {
+pub struct Tree<T>
+where
+    T: Clone,
+{
     /// Root node of the three
     ///
     /// Option
@@ -22,13 +25,19 @@ pub struct Tree<T> {
     pub(crate) root: Option<Arc<RwLock<Node<T>>>>,
 }
 
-impl<T> Default for Tree<T> {
+impl<T> Default for Tree<T>
+where
+    T: Clone,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> Tree<T> {
+impl<T> Tree<T>
+where
+    T: Clone,
+{
     /// Creates an empty tree.
     #[must_use]
     pub fn new() -> Self {

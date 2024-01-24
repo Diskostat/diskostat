@@ -2,17 +2,26 @@ use std::sync::{Arc, RwLock};
 
 use super::node::Node;
 
-pub struct NodeToRootIterator<T> {
+pub struct NodeToRootIterator<T>
+where
+    T: Clone,
+{
     node: Arc<RwLock<Node<T>>>,
 }
 
-impl<T> NodeToRootIterator<T> {
+impl<T> NodeToRootIterator<T>
+where
+    T: Clone,
+{
     pub fn new(node: Arc<RwLock<Node<T>>>) -> Self {
         Self { node }
     }
 }
 
-impl<T> Iterator for NodeToRootIterator<T> {
+impl<T> Iterator for NodeToRootIterator<T>
+where
+    T: Clone,
+{
     type Item = Arc<RwLock<Node<T>>>;
 
     fn next(&mut self) -> Option<Self::Item> {

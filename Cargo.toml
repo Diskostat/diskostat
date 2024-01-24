@@ -23,3 +23,4 @@ ref_tree = { workspace = true }
 crossterm = "0.27.0"
 ratatui = "0.25.0"
 anyhow = "1.0.79"
+byte-unit = "5.1.3"

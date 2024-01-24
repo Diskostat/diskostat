@@ -4,7 +4,10 @@ use std::{
 };
 
 #[derive(Debug)]
-pub struct Node<T> {
+pub struct Node<T>
+where
+    T: Clone,
+{
     /// empty vec -> leaf node (only in tree struct, not in fs,
     /// i.e. can be empty dir)
     pub(crate) children: Vec<Arc<RwLock<Node<T>>>>,
@@ -16,7 +19,10 @@ pub struct Node<T> {
     pub(crate) parent: Option<Weak<RwLock<Node<T>>>>,
 }
 
-impl<T> Node<T> {
+impl<T> Node<T>
+where
+    T: Clone,
+{
     /// Creates not connected Node.
     pub fn new(data: T) -> Self {
         Self {
@@ -39,6 +45,14 @@ impl<T> Node<T> {
 
     pub fn get_children(&self) -> Vec<Arc<RwLock<Node<T>>>> {
         self.children.clone()
+    }
+
+    pub fn get_children_data(&self) -> Vec<(T, usize)> {
+        self.children
+            .iter()
+            .enumerate()
+            .map(|(i, c)| (c.clone().read().unwrap().data.clone(), i))
+            .collect()
     }
 }
 

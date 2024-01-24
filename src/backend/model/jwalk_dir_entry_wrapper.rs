@@ -1,5 +1,7 @@
 use std::fs::Metadata;
 
+use byte_unit::Byte;
+
 use super::{
     entry_node::EntryNode,
     entry_type::{EntryType, FileType},
@@ -23,9 +25,10 @@ impl EntryNode {
         };
         let entry_type = DirEntryToEntryNodeHelper::extract_entry_type(dir_entry);
         // TODO: adjust!
-        let size = metadata.len();
+        let size = Byte::from_u64(metadata.len());
 
         Some(EntryNode {
+            path: dir_entry.path().to_string_lossy().to_string(),
             name,
             size,
             descendants_count: 0,
