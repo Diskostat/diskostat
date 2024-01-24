@@ -56,9 +56,17 @@ impl DiskoTree {
         while iter.next().is_some() {}
     }
 
+    pub(crate) fn get_children_data(
+        parent: &Arc<RwLock<Node<EntryNode>>>,
+    ) -> Vec<(EntryNode, usize)> {
+        let parent = parent.clone();
+        let parent_read = parent.read().unwrap();
+        parent_read.get_children_data()
+    }
+
     pub(crate) fn delete_children(
         &self,
-        _parent: Arc<RwLock<Node<EntryNode>>>,
+        _parent: &Arc<RwLock<Node<EntryNode>>>,
         _children_indexes: Vec<usize>,
     ) -> std::io::Result<()> {
         // TODO: FIX Node deletion
