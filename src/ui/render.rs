@@ -27,7 +27,7 @@ pub fn render(state: &mut AppState, frame: &mut Frame) {
 
     match &state.focus {
         AppFocus::ConfirmDeletePopup(popup) => {
-            let popup_area = centered_rect(30, 30, frame.size());
+            let popup_area = centered_rect(25, 25, frame.size());
             render_confirm_delete_popup(frame, popup_area, popup);
         }
         AppFocus::MainScreen => (),
