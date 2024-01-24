@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
@@ -36,7 +37,7 @@ impl DiskoTree {
     /// Run this on separate thread to not block the ui thread. Once
     /// the computation ends, the file system from given root path is
     /// evaluated and sizes calcuated.
-    pub(crate) fn traverse(&self) {
+    pub(crate) fn traverse(&mut self) {
         let walk_dir = WalkDirGeneric::<(TreeWalkState, ())>::new(self.root_path.clone())
             .sort(true)
             .parallelism(RayonNewPool(10))
@@ -121,5 +122,36 @@ impl DiskoTree {
                 .data
                 .size += size;
         }
+    }
+}
+
+impl fmt::Display for DiskoTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let tree = self.tree.read().expect("Failed to read tree");
+        let Some(root) = tree.get_root() else {
+            return write!(f, "Empty DiskoTree");
+        };
+        let root = root
+            .read()
+            .expect("Failed to read root while printing disko tree");
+
+        write!(f, "{}", root.data)?;
+        let children = root.get_children();
+        std::mem::drop(root); // Drop the lock on root.
+
+        let Some((last, rest)) = children.split_last() else {
+            return Ok(());
+        };
+
+        for child in rest {
+            let child = child
+                .read()
+                .expect("Failed to read child while printing disko tree");
+            write!(f, "\n├── {}", child.data)?;
+        }
+        let last = last
+            .read()
+            .expect("Failed to read last child while printing disko tree");
+        write!(f, "\n└── {}", last.data)
     }
 }
