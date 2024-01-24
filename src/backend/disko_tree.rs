@@ -1,13 +1,13 @@
 use std::{
-    path::Path,
+    path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
 
-use byte_unit::Byte;
 use jwalk::{DirEntry, Parallelism::RayonNewPool, WalkDirGeneric};
 
 use super::model::{
     entry_node::EntryNode,
+    entry_size::EntrySize,
     tree_walk_state::{CustomJWalkClientState, TreeWalkState},
 };
 
@@ -20,21 +20,30 @@ pub enum BackpropOperation {
 
 pub struct DiskoTree {
     tree: Arc<RwLock<Tree<EntryNode>>>,
+    root_path: PathBuf,
 }
 
+// Public interface
+
 impl DiskoTree {
-    fn new() -> Self {
+    pub(crate) fn new(starting_at: PathBuf) -> Self {
         Self {
             tree: Arc::new(RwLock::new(Tree::new())),
+            root_path: starting_at,
         }
     }
 
-    pub(crate) fn new_static() -> &'static DiskoTree {
-        Box::leak(Box::new(DiskoTree::new()))
+    /// Poll the state of evaluation by taking look (.read()) at the
+    /// tree building.
+    pub(crate) fn get_tree(&self) -> Arc<RwLock<Tree<EntryNode>>> {
+        self.tree.clone()
     }
 
-    pub(crate) fn traverse(&'static self) {
-        let walk_dir = WalkDirGeneric::<(TreeWalkState, ())>::new(".")
+    /// Run this on separate thread to not block the ui thread. Once
+    /// the computation ends, the file system from given root path is
+    /// evaluated and sizes calcuated.
+    pub(crate) fn traverse(&self) {
+        let walk_dir = WalkDirGeneric::<(TreeWalkState, ())>::new(self.root_path.clone())
             .sort(true)
             .parallelism(RayonNewPool(10))
             .root_read_dir_state(TreeWalkState::Tree(self.tree.clone()))
@@ -47,40 +56,82 @@ impl DiskoTree {
         while iter.next().is_some() {}
     }
 
+    pub(crate) fn delete_children(
+        &self,
+        _parent: Arc<RwLock<Node<EntryNode>>>,
+        _children_indexes: Vec<usize>,
+    ) -> std::io::Result<()> {
+        // TODO: FIX Node deletion
+        // let write_parent = parent.clone().write().unwrap() else {
+        //     panic!("Failed to read parent while deleting children");
+        // };
+
+        // let mut deleted_size = EntrySize::default();
+
+        // children_indexes.into_iter().for_each(|index| {
+        //     let Some(child) = write_parent.get_children().get(index);
+        //     let childe = child.clone().read().unwrap() else {
+        //         panic!("Failed to read child while deleting children");
+        //     };
+
+        //     match delete_entry(childe.data) {
+        //         Ok(_) => {
+        //             deleted_size += childe.data.size;
+        //             self.tree.clone().write().unwrap().remove_subtree(&child);
+        //         }
+        //         Err(e) => {
+        //             panic!("Failed to delete entry ${}", childe.data.path);
+        //         }
+        //     }
+        // });
+
+        // Self::backprop_size(&parent, deleted_size, BackpropOperation::Subtract);
+        Ok(())
+    }
+}
+
+// Convenience/helpers
+
+impl DiskoTree {
     fn process_dir(
-        _depth: Option<usize>,
+        depth: Option<usize>,
         dir_path: &Path,
         state: &mut TreeWalkState,
         children: &mut [jwalk::Result<DirEntry<CustomJWalkClientState>>],
     ) {
+        // Skip parent directory (./..).
+        if depth.is_none() {
+            return;
+        }
         // Create entry node from jwalks
         let Some(dir_node) = EntryNode::new_dir(dir_path) else {
             return;
         };
-        // Create not connected node to put into the tree then
-        let mut dir_node = Node::new(dir_node);
 
-        // count size + attach children
-        let size = dir_node.data.size;
+        // Create node on tree.
+        let node = Self::attach_to_tree(state, dir_node);
 
-        // println!("started reading dir: {}", dir_node.name);
+        // Count size of file children.
+        let mut size = EntrySize::default();
 
         children
             .iter_mut()
-            .filter_map(|dir_entry_result| dir_entry_result.as_ref().ok())
+            // Put reference to results inner types.
+            .map(|dir_entry_result| dir_entry_result.as_ref())
+            // Filter errors out and return just `DirEntry` entries.
+            .filter_map(std::result::Result::ok)
             .filter(|dir_entry| dir_entry.file_type.is_file())
-            .filter_map(EntryNode::new)
-            .map(Node::new)
-            .for_each(|node| {
-                size.add(node.data.size);
-                dir_node.attach_child(node);
+            // Map to our `EntryNode`s.
+            .map(EntryNode::try_from)
+            // Throw away when convertion failed.
+            .filter_map(Result::ok)
+            // Finaly process the file children.
+            .for_each(|child_node| {
+                size += child_node.size;
+                Tree::attach_child(&node, child_node);
             });
 
-        dir_node.data.size = size;
-
-        let node = Self::attach_to_tree(state, dir_node);
-
-        // Propagate size to root.
+        // Propagate size up including this node to root (including).
         Self::backprop_size(&node, size, BackpropOperation::Add);
 
         // Move (i.e. not .clone()) reference to this node as a parent
@@ -88,58 +139,35 @@ impl DiskoTree {
         *state = TreeWalkState::Parent(node);
     }
 
-    fn attach_to_tree(
-        state: &TreeWalkState,
-        node: Node<EntryNode>,
-    ) -> Arc<RwLock<Node<EntryNode>>> {
+    fn attach_to_tree(state: &TreeWalkState, node: EntryNode) -> Arc<RwLock<Node<EntryNode>>> {
         match state {
             TreeWalkState::Parent(parent) => Tree::attach_child(parent, node),
-            TreeWalkState::Tree(tree) => tree.write().unwrap().set_root_node(node),
+            TreeWalkState::Tree(tree) => tree
+                .write()
+                .expect("Writing to tree failed when setting root.")
+                .create_node_and_set_root(node)
+                .expect(
+                    "The inner tree already has a root node but disko tree thinks it does not yet.",
+                ),
         }
     }
 
     fn backprop_size(
         node: &Arc<RwLock<Node<EntryNode>>>,
-        size: Byte,
+        size: EntrySize,
         operation: BackpropOperation,
     ) {
         let iter = Tree::iter_to_root_from_node(node.clone());
 
         iter.into_iter().for_each(|node| {
-            let node = node
+            let mut node = node
                 .write()
                 .expect("Failed to write while backpropagating size");
 
             match operation {
-                BackpropOperation::Add => node.data.size.add(size),
-                BackpropOperation::Subtract => node.data.size.subtract(size),
+                BackpropOperation::Add => node.data.size += size,
+                BackpropOperation::Subtract => node.data.size -= size,
             };
         });
-    }
-
-    pub(crate) fn get_tree(&self) -> Arc<RwLock<Tree<EntryNode>>> {
-        self.tree.clone()
-    }
-
-    pub(crate) fn delete_children(
-        parent: Arc<RwLock<Node<EntryNode>>>,
-        indexes: Vec<usize>,
-    ) -> std::io::Result<()> {
-        let read_parent = parent.clone().write().unwrap() else {
-            panic!("Failed to read parent while deleting children");
-        };
-
-        let mut deleted_size: Byte = Byte::from_u64(0);
-
-        indexes.into_iter().for_each(|index| {
-            let Some(child) = read_parent.get_children().get(index);
-
-            delete_entry(child)?.expect("Failed to delete entry ${}", child.path);
-            deleted_size += child.size();
-            read_parent.children().remove(index);
-        });
-
-        Self::backprop_size(&parent, deleted_size, BackpropOperation::Subtract);
-        Ok(())
     }
 }

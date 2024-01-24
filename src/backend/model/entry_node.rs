@@ -1,26 +1,24 @@
-use std::{fmt::Display, fs, path::Path};
+use std::{
+    fmt::Display,
+    fs::{self, Metadata},
+    path::Path,
+};
 
-use byte_unit::Byte;
-
-use super::entry_type::EntryType;
+use super::{
+    entry_size::EntrySize,
+    entry_type::{EntryType, FileType},
+    tree_walk_state::CustomJWalkClientState,
+};
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub(crate) struct EntryNode {
     pub(crate) path: String,
     pub(crate) name: String,
-    pub(crate) size: Byte,
+    pub(crate) size: EntrySize,
     pub(crate) descendants_count: usize,
     pub(crate) entry_type: EntryType,
     pub(crate) metadata: fs::Metadata,
-}
-
-// Traits implementations
-
-impl Display for EntryNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "EntryNode: size={:12} | {}", self.size, self.name)
-    }
 }
 
 // Convenience helpers
@@ -37,18 +35,98 @@ impl EntryNode {
 
         let name = path
             .file_name()
-            .unwrap_or("no file_name".as_ref())
-            .to_str()
-            .unwrap_or("no str")
+            // `std::path::Path` returns None, if the path refers to
+            // the parent directory (..). Therefore, we create that
+            // manually.
+            //
+            // TODO: Check if .. is / and corrent the name if so.
+            .unwrap_or("..".as_ref())
+            // See docs for usage.
+            .to_string_lossy()
             .to_string();
 
         Some(Self {
             path: path.to_string_lossy().to_string(),
             name,
-            size: Byte::from_u64(0),
+            size: EntrySize::default(),
             descendants_count: 0,
             entry_type: EntryType::Directory,
             metadata,
         })
+    }
+}
+
+// Traits implementations
+
+impl Display for EntryNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:<20} • {}", self.name, self.size.size)
+    }
+}
+
+impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
+    type Error = &'static str;
+
+    fn try_from(value: &jwalk::DirEntry<CustomJWalkClientState>) -> Result<Self, Self::Error> {
+        let Some(metadata) = Self::extract_metadata(value) else {
+            return Err("Error getting metadata from DirEntry");
+        };
+        let Some(name) = Self::extract_name(value) else {
+            return Err("Error getting name from DirEntry");
+        };
+        let entry_type = Self::extract_entry_type(value);
+        // TODO: Adjust! Get the real size of file on disk and or it's
+        // real size.
+        let size = EntrySize::new(metadata.clone());
+
+        Ok(EntryNode {
+            path: value.path().to_string_lossy().to_string(),
+            name,
+            size,
+            descendants_count: 0,
+            entry_type,
+            metadata,
+        })
+    }
+}
+
+// Helper functions for TryFrom
+
+impl EntryNode {
+    fn extract_name(dir_entry: &jwalk::DirEntry<CustomJWalkClientState>) -> Option<String> {
+        match dir_entry.file_name.clone().into_string() {
+            Ok(name) => Some(name),
+            Err(os_string) => {
+                dbg!(
+                    "DirEntry has no name!\nOsString:",
+                    os_string,
+                    "\nDirEntry:",
+                    dir_entry
+                );
+                None
+            }
+        }
+    }
+
+    fn extract_entry_type(dir_entry: &jwalk::DirEntry<CustomJWalkClientState>) -> EntryType {
+        if dir_entry.file_type.is_dir() {
+            return EntryType::Directory;
+        }
+        EntryType::File(FileType::Text)
+    }
+
+    fn extract_metadata(dir_entry: &jwalk::DirEntry<CustomJWalkClientState>) -> Option<Metadata> {
+        match dir_entry.metadata() {
+            Ok(metadata) => Some(metadata),
+            Err(error) => {
+                dbg!(
+                    "Error getting metadata from DirEntry:",
+                    dir_entry,
+                    "\nerror: ",
+                    error
+                );
+                None
+            }
+        }
     }
 }

@@ -6,7 +6,7 @@ pub struct NodeToRootIterator<T>
 where
     T: Clone,
 {
-    node: Arc<RwLock<Node<T>>>,
+    node: Option<Arc<RwLock<Node<T>>>>,
 }
 
 impl<T> NodeToRootIterator<T>
@@ -14,7 +14,7 @@ where
     T: Clone,
 {
     pub fn new(node: Arc<RwLock<Node<T>>>) -> Self {
-        Self { node }
+        Self { node: Some(node) }
     }
 }
 
@@ -25,24 +25,20 @@ where
     type Item = Arc<RwLock<Node<T>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Borrow current node and read parent.
-        let parent_opt = {
-            let current = self.node.read().unwrap();
-            current.parent.clone()
-        };
-
-        // If parent is None, we are at the root node.
-        let Some(parent) = parent_opt else {
+        // Finish if we're at the root.
+        let Some(current) = self.node.clone() else {
             return None;
         };
 
-        // Step up.
-        match parent.upgrade() {
-            Some(parent) => {
-                self.node = parent.clone();
-                Some(parent)
-            }
-            None => None,
-        }
+        // Step up the tree.
+        self.node = current
+            .read()
+            .expect("Could not read current node.")
+            .parent
+            .clone()
+            .and_then(|parent| parent.upgrade());
+
+        // Return the current node.
+        Some(current)
     }
 }

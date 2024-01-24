@@ -19,32 +19,18 @@ where
     pub(crate) parent: Option<Weak<RwLock<Node<T>>>>,
 }
 
+// Public interface
+
 impl<T> Node<T>
 where
     T: Clone,
 {
-    /// Creates not connected Node.
-    pub fn new(data: T) -> Self {
-        Self {
-            children: vec![],
-            data,
-            parent: None,
-        }
-    }
-
-    /// Attaches given node to this node as a child.
-    /// Does NOT attach parent.
-    ///
-    /// Consumes given Node. Returns newly created Arc-RwlLock for the new node.
-    pub fn attach_child(&mut self, node: Node<T>) -> Arc<RwLock<Node<T>>> {
-        let other_node_arc = Arc::new(RwLock::new(node));
-        self.children.push(other_node_arc.clone());
-
-        other_node_arc
-    }
-
     pub fn get_children(&self) -> Vec<Arc<RwLock<Node<T>>>> {
         self.children.clone()
+    }
+
+    pub fn get_parent(&self) -> Option<Weak<RwLock<Node<T>>>> {
+        self.parent.clone()
     }
 
     pub fn get_children_data(&self) -> Vec<(T, usize)> {
@@ -56,12 +42,33 @@ where
     }
 }
 
-// TODO: integrate in main crate
+// Internal convenience functions
 
-// impl Node<EntryNode> {
-//     // TODO: Create trait
-//     // TODO: User formatter as Display does
-//     pub(crate) fn pretty(&self) -> String {
-//         format!("{:<20} • {}", self.data.name, self.data.size)
-//     }
-// }
+impl<T> Node<T>
+where
+    T: Clone,
+{
+    /// Creates disconnected Node.
+    pub(crate) fn new(data: T) -> Self {
+        Self {
+            children: vec![],
+            data,
+            parent: None,
+        }
+    }
+
+    /// Attaches given node to this node as a child.
+    /// Does NOT attach parent.
+    ///
+    /// Consumes given Node. Returns newly created Arc-RwlLock for the new node.
+    pub(crate) fn create_and_attach_child(&mut self, data: T) -> Arc<RwLock<Node<T>>> {
+        let other_node_arc = Arc::new(RwLock::new(Node::new(data)));
+        self.children.push(other_node_arc.clone());
+
+        other_node_arc
+    }
+
+    pub(crate) fn attach_parent(&mut self, parent: &Arc<RwLock<Node<T>>>) {
+        self.parent = Some(Arc::downgrade(parent));
+    }
+}

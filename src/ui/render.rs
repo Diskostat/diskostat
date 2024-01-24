@@ -1,11 +1,14 @@
-use std::rc::Rc;
+use std::{path::PathBuf, rc::Rc};
 
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, Cell, Paragraph, Row, Table},
 };
 
-use super::app::AppState;
+use super::{
+    app::{AppState, Preview},
+    components::table::StatefulTable,
+};
 
 /// Renders the user interface.
 pub fn render(state: &mut AppState, frame: &mut Frame) {
@@ -70,20 +73,73 @@ fn render_left_panel(frame: &mut Frame, area: Rect, state: &mut AppState, block:
         .main_table
         .items
         .iter()
-        .map(|data| Row::new(vec![Cell::from(Text::from(data.to_string()))]));
+        .enumerate()
+        .map(|(index, data)| {
+            Row::new(vec![
+                Cell::from(Span::styled(
+                    if state.main_table.is_selected(index) {
+                        "▌"
+                    } else {
+                        ""
+                    },
+                    Style::default().fg(Color::LightGreen),
+                )),
+                Cell::from(Text::from(data.file_name().unwrap().to_str().unwrap())),
+            ])
+        });
+
+    let table = Table::new(rows, [Constraint::Length(1), Constraint::Min(10)])
+        .highlight_style(highlight_style)
+        .block(block);
+
+    frame.render_stateful_widget(table, area, &mut state.main_table.state);
+}
+
+fn render_right_panel(frame: &mut Frame, area: Rect, state: &mut AppState, block: Block<'_>) {
+    match &mut state.preview {
+        Preview::Table(table) => render_preview_table(frame, area, table, block),
+        Preview::Text(text) => render_preview_paragraph(frame, area, text, block),
+        Preview::EmptyDirectory => render_preview_empty(frame, area, block),
+    }
+}
+
+fn render_preview_table(
+    frame: &mut Frame,
+    area: Rect,
+    state: &mut StatefulTable<PathBuf>,
+    block: Block<'_>,
+) {
+    let rows = state.items.iter().map(|data| {
+        Row::new(vec![Cell::from(Text::from(
+            data.file_name().unwrap().to_str().unwrap(),
+        ))])
+    });
 
     let table = Table::new(
         rows,
         [Constraint::Percentage(50), Constraint::Percentage(50)],
     )
-    .highlight_style(highlight_style)
     .block(block);
 
-    frame.render_stateful_widget(table, area, &mut state.main_table.state);
+    frame.render_stateful_widget(table, area, &mut state.state);
 }
 
-fn render_right_panel(frame: &mut Frame, area: Rect, _state: &mut AppState, block: Block<'_>) {
-    frame.render_widget(block, area);
+fn render_preview_empty(frame: &mut Frame, area: Rect, block: Block<'_>) {
+    let text = Text::styled(
+        "Empty directory",
+        Style::new()
+            .bg(Color::White)
+            .fg(Color::Black)
+            .add_modifier(Modifier::UNDERLINED),
+    );
+
+    let paragraph = Paragraph::new(text).block(block);
+    frame.render_widget(paragraph, area);
+}
+
+fn render_preview_paragraph(frame: &mut Frame, area: Rect, state: &str, block: Block<'_>) {
+    let text = Paragraph::new(state).block(block);
+    frame.render_widget(text, area);
 }
 
 fn render_top_panel(frame: &mut Frame, area: Rect, _state: &mut AppState, block: Block<'_>) {
@@ -92,6 +148,6 @@ fn render_top_panel(frame: &mut Frame, area: Rect, _state: &mut AppState, block:
 }
 
 fn render_bottom_panel(frame: &mut Frame, area: Rect, _state: &mut AppState, block: Block<'_>) {
-    let commands = Paragraph::new("Commands: q(uit)").block(block);
+    let commands = Paragraph::new("Commands: q(uit), s(elect)").block(block);
     frame.render_widget(commands, area);
 }

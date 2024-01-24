@@ -2,6 +2,7 @@
 
 mod model {
     pub mod tree_mod {
+        mod pretty_print;
         mod tests;
         pub mod tree;
     }

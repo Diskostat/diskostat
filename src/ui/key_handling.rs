@@ -11,10 +11,13 @@ pub fn map_key_events(event: Event) -> Option<Action> {
             KeyCode::Char('c') | KeyCode::Char('C') if key.modifiers == KeyModifiers::CONTROL => {
                 Action::Quit
             }
+            KeyCode::Char('s') => Action::ToggleSelection,
             KeyCode::Down | KeyCode::Char('j') => Action::FocusNextItem,
             KeyCode::Up | KeyCode::Char('k') => Action::FocusPreviousItem,
             KeyCode::Char('g') => Action::FocusFirstItem,
             KeyCode::Char('G') => Action::FocusLastItem,
+            KeyCode::Right | KeyCode::Char('l') => Action::EnterFocusedDirectory,
+            KeyCode::Left | KeyCode::Char('h') => Action::EnterParentDirectory,
             _ => return None,
         },
         Event::Mouse(_) => return None,
