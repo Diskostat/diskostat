@@ -1,3 +1,5 @@
+#[allow(dead_code)]
+mod backend;
 /// The front end of the application.
 pub mod ui;
 

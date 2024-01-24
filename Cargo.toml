@@ -9,8 +9,17 @@ edition = "2021"
 name = "disko"
 path = "src/main.rs"
 
+[workspace]
+members = [
+  "lib/ref_tree"
+]
+
+[workspace.dependencies]
+ref_tree = { path = "lib/ref_tree" }
+
 [dependencies]
-slab_tree = "0.3.2"
+jwalk = "0.8.1"
+ref_tree = { workspace = true }
 crossterm = "0.27.0"
 ratatui = "0.25.0"
 anyhow = "1.0.79"
