@@ -1,17 +1,17 @@
 pub struct ConfirmDeletePopup {
-    selected_yes: bool,
+    confirmed: bool,
 }
 
 impl ConfirmDeletePopup {
-    pub fn new(selected_yes: bool) -> Self {
-        Self { selected_yes }
+    pub fn new(confirmed: bool) -> Self {
+        Self { confirmed }
     }
 
-    pub fn selected_yes(&self) -> bool {
-        self.selected_yes
+    pub fn confirmed(&self) -> bool {
+        self.confirmed
     }
 
-    pub fn tab(&mut self) {
-        self.selected_yes = !self.selected_yes;
+    pub fn switch_confirmation(&mut self) {
+        self.confirmed = !self.confirmed;
     }
 }

@@ -226,7 +226,7 @@ fn render_confirm_delete_popup(
     let mut yes = Span::from("Yes");
     let mut no = Span::from("No");
 
-    if confirm_delete_popup.selected_yes() {
+    if confirm_delete_popup.confirmed() {
         yes = yes.fg(Color::Yellow);
     } else {
         no = no.fg(Color::Yellow);

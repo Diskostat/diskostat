@@ -184,12 +184,12 @@ impl App {
                 }
                 Action::DeletePopupTab => {
                     if let AppFocus::ConfirmDeletePopup(popup) = &mut self.state.focus {
-                        popup.tab();
+                        popup.switch_confirmation();
                     }
                 }
                 Action::DeletePopupSelect => {
                     if let AppFocus::ConfirmDeletePopup(popup) = &mut self.state.focus {
-                        if popup.selected_yes() {
+                        if popup.confirmed() {
                             // TODO: Implement deletion.
                         }
                         self.state.focus = AppFocus::MainScreen;
