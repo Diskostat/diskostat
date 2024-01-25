@@ -18,7 +18,7 @@ pub(crate) enum TreeWalkAncestor {
 pub(crate) struct TreeWalkState {
     pub(crate) ancestor: TreeWalkAncestor,
     #[cfg(unix)]
-    inodes_remaining_links: Arc<Mutex<HashMap<u64, u64>>>,
+    inodes_unvisited_links: Arc<Mutex<HashMap<u64, u64>>>,
 }
 
 impl TreeWalkState {
@@ -26,7 +26,7 @@ impl TreeWalkState {
         Self {
             ancestor: TreeWalkAncestor::Tree(tree),
             #[cfg(unix)]
-            inodes_remaining_links: Arc::new(Mutex::new(HashMap::new())),
+            inodes_unvisited_links: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -37,11 +37,11 @@ impl TreeWalkState {
         let inode = metadata.ino();
         let links = metadata.nlink();
         if links > 1 {
-            let mut inodes_remaining_links = self
-                .inodes_remaining_links
+            let mut inodes_unvisited_links = self
+                .inodes_unvisited_links
                 .lock()
                 .expect("Failed to lock inode map.");
-            match inodes_remaining_links.entry(inode) {
+            match inodes_unvisited_links.entry(inode) {
                 hash_map::Entry::Occupied(mut hash_map_entry) => {
                     let count = hash_map_entry.get_mut();
                     if *count == 1 {
@@ -78,7 +78,7 @@ impl Default for TreeWalkState {
         Self {
             ancestor: TreeWalkAncestor::Tree(Arc::new(RwLock::new(Tree::new()))),
             #[cfg(unix)]
-            inodes_remaining_links: Arc::new(Mutex::new(HashMap::new())),
+            inodes_unvisited_links: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
