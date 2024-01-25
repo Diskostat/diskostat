@@ -10,20 +10,34 @@ pub struct ColorTheme {
 }
 
 impl ColorTheme {
-    pub fn new() -> Self {
+    pub fn new(
+        primary: Color,
+        secondary: Color,
+        tertiary: Color,
+        fg: Color,
+        bg: Color,
+        highlight: Color,
+    ) -> Self {
         Self {
-            primary: Color::Yellow,
-            secondary: Color::Blue,
-            tertiary: Color::Green,
-            fg: Color::White,
-            bg: Color::Black,
-            highlight: Color::Red,
+            primary,
+            secondary,
+            tertiary,
+            fg,
+            bg,
+            highlight,
         }
     }
 }
 
 impl Default for ColorTheme {
     fn default() -> Self {
-        Self::new()
+        Self::new(
+            Color::Yellow,
+            Color::Blue,
+            Color::Green,
+            Color::White,
+            Color::Black,
+            Color::Red,
+        )
     }
 }
