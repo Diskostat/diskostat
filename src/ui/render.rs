@@ -163,7 +163,7 @@ fn render_bottom_panel(frame: &mut Frame, area: Rect, _state: &mut AppState, blo
     frame.render_widget(commands, area);
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -171,7 +171,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage(percent_y),
             Constraint::Percentage((100 - percent_y) / 2),
         ])
-        .split(r);
+        .split(area);
 
     Layout::default()
         .direction(Direction::Horizontal)

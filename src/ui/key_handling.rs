@@ -53,7 +53,9 @@ fn map_key_events_confirm_delete_popup(event: Event) -> Option<Action> {
         Event::Tick => Action::Tick,
         Event::Key(key) => match key.code {
             KeyCode::Esc | KeyCode::Char('n' | 'q') => Action::ShowMainScreen,
-            KeyCode::Right | KeyCode::Char('l' | 'h') | KeyCode::Left => Action::DeletePopupTab,
+            KeyCode::Right | KeyCode::Char('l' | 'h') | KeyCode::Left => {
+                Action::DeletePopupSwitchConfirmation
+            }
             KeyCode::Enter => Action::DeletePopupSelect,
             KeyCode::Char('y') => Action::ConfirmDelete,
             _ => return None,

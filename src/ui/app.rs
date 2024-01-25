@@ -16,20 +16,20 @@ pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBacken
 /// All possible application actions.
 pub enum Action {
     Tick,
+    Quit,
     ShowMainScreen,
+    ShowConfirmDeletePopup,
     FocusNextItem,
     FocusPreviousItem,
     FocusFirstItem,
     FocusLastItem,
     EnterFocusedDirectory,
     EnterParentDirectory,
-    ShowConfirmDeletePopup,
-    ConfirmDelete,
-    DeletePopupTab,
+    DeletePopupSwitchConfirmation,
     DeletePopupSelect,
+    ConfirmDelete,
     ToggleSelection,
     Resize(u16, u16),
-    Quit,
 }
 
 /// Possible application preview states.
@@ -163,6 +163,9 @@ impl App {
                 Action::Tick => self.tick(),
                 Action::Quit => self.quit(),
                 Action::ShowMainScreen => self.state.focus = AppFocus::MainScreen,
+                Action::ShowConfirmDeletePopup => {
+                    self.state.focus = AppFocus::ConfirmDeletePopup(ConfirmDeletePopup::new(true));
+                }
                 Action::FocusNextItem => {
                     self.state.main_table.focus_next();
                     self.update_focus()?;
@@ -179,10 +182,7 @@ impl App {
                     self.state.main_table.focus_last();
                     self.update_focus()?;
                 }
-                Action::ShowConfirmDeletePopup => {
-                    self.state.focus = AppFocus::ConfirmDeletePopup(ConfirmDeletePopup::new(true));
-                }
-                Action::DeletePopupTab => {
+                Action::DeletePopupSwitchConfirmation => {
                     if let AppFocus::ConfirmDeletePopup(popup) = &mut self.state.focus {
                         popup.switch_confirmation();
                     }
