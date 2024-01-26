@@ -1,11 +1,17 @@
 use ratatui::style::Color;
 
 pub struct ColorTheme {
+    /// Primary color of the application, used for directories and their focus.
     pub primary: Color,
+    /// Secondary color of the application, used to contrast the primary color.
     pub secondary: Color,
+    /// Tertiary color of the application, used to contrast the primary color.
     pub tertiary: Color,
+    /// Used for default text color.
     pub fg: Color,
+    /// Background color used for inverting text colors.
     pub bg: Color,
+    /// Used for highlighting text.
     pub highlight: Color,
 }
 
@@ -31,13 +37,13 @@ impl ColorTheme {
 
 impl Default for ColorTheme {
     fn default() -> Self {
-        Self::new(
-            Color::Yellow,
-            Color::Blue,
-            Color::Green,
-            Color::White,
-            Color::Black,
-            Color::Red,
-        )
+        Self {
+            primary: Color::Yellow,
+            secondary: Color::Blue,
+            tertiary: Color::Green,
+            fg: Color::White,
+            bg: Color::Black,
+            highlight: Color::Red,
+        }
     }
 }
