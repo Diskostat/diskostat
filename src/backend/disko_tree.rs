@@ -5,10 +5,13 @@ use std::{
 
 use jwalk::{DirEntry, Parallelism::RayonNewPool, WalkDirGeneric};
 
-use super::model::{
-    entry_node::EntryNode,
-    entry_size::EntrySize,
-    tree_walk_state::{CustomJWalkClientState, TreeWalkState},
+use super::{
+    file_system_wrapper::delete_entry,
+    model::{
+        entry_node::EntryNode,
+        entry_size::EntrySize,
+        tree_walk_state::{CustomJWalkClientState, TreeWalkState},
+    },
 };
 
 use ref_tree::{Node, Tree};
@@ -66,34 +69,50 @@ impl DiskoTree {
 
     pub(crate) fn delete_children(
         &self,
-        _parent: &Arc<RwLock<Node<EntryNode>>>,
-        _children_indexes: Vec<usize>,
+        parent: &Arc<RwLock<Node<EntryNode>>>,
+        children_indexes: &mut Vec<usize>,
     ) -> std::io::Result<()> {
-        // TODO: FIX Node deletion
-        // let write_parent = parent.clone().write().unwrap() else {
-        //     panic!("Failed to read parent while deleting children");
-        // };
+        let children: Vec<Arc<RwLock<Node<EntryNode>>>> = parent
+            .clone()
+            .read()
+            .expect("ailed to read parent while deleting children.")
+            .get_children();
 
-        // let mut deleted_size = EntrySize::default();
+        let mut deleted_size = EntrySize::default();
 
-        // children_indexes.into_iter().for_each(|index| {
-        //     let Some(child) = write_parent.get_children().get(index);
-        //     let childe = child.clone().read().unwrap() else {
-        //         panic!("Failed to read child while deleting children");
-        //     };
+        // Because we manipulate the vector of children for each index.
+        children_indexes.sort();
+        children_indexes.reverse();
+        children_indexes.into_iter().for_each(|index| {
+            let Some(child) = children.get(*index) else {
+                // Provided index is out of bounds.
+                return;
+            };
 
-        //     match delete_entry(childe.data) {
-        //         Ok(_) => {
-        //             deleted_size += childe.data.size;
-        //             self.tree.clone().write().unwrap().remove_subtree(&child);
-        //         }
-        //         Err(e) => {
-        //             panic!("Failed to delete entry ${}", childe.data.path);
-        //         }
-        //     }
-        // });
+            let read_child = child
+                .read()
+                .expect("Failed to read child while deleting children.");
 
-        // Self::backprop_size(&parent, deleted_size, BackpropOperation::Subtract);
+            match delete_entry(&read_child.data) {
+                Ok(_) => {
+                    deleted_size += read_child.data.size;
+                    self.tree
+                        .clone()
+                        .write()
+                        .expect("Failed to write to tree while deleting children.")
+                        .remove_subtree(&child)
+                        .expect("Failed to delete chid.");
+                }
+                Err(e) => {
+                    panic!(
+                        "Failed to delete entry {}, Error: {}",
+                        read_child.data.path, e
+                    );
+                }
+            }
+        });
+
+        Self::backprop_size(&parent, deleted_size, BackpropOperation::Subtract);
         Ok(())
     }
 }

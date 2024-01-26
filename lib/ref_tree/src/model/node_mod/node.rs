@@ -39,7 +39,7 @@ where
             .enumerate()
             .map(|(i, c)| {
                 let child = c.clone();
-                let child_read = child.read().unwrap();
+                let child_read = child.read().expect("Failed to fetch child data.");
                 (child_read.data.clone(), i)
             })
             .collect()
