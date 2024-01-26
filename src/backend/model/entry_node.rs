@@ -48,7 +48,7 @@ impl EntryNode {
         Some(Self {
             path: path.to_string_lossy().to_string(),
             name,
-            size: EntrySize::default(),
+            size: EntrySize::new(path, &metadata),
             descendants_count: 0,
             entry_type: EntryType::Directory,
             metadata,
@@ -77,7 +77,7 @@ impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
         let entry_type = Self::extract_entry_type(value);
         // TODO: Adjust! Get the real size of file on disk and or it's
         // real size.
-        let size = EntrySize::new(&metadata);
+        let size = EntrySize::new(value.path().as_path(), &metadata);
 
         Ok(EntryNode {
             path: value.path().to_string_lossy().to_string(),

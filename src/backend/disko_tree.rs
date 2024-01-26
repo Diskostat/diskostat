@@ -139,7 +139,7 @@ impl DiskoTree {
         };
 
         // Count size of file children.
-        let mut size = EntrySize::new(&dir_node.metadata);
+        let mut size = EntrySize::default();
 
         // Create node on tree.
         let node = Self::attach_to_tree(state, dir_node);

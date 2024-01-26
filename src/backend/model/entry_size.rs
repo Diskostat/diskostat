@@ -1,4 +1,6 @@
+use filesize::PathExt;
 use std::ops::{AddAssign, SubAssign};
+use std::path::Path;
 
 use byte_unit::Byte;
 
@@ -9,11 +11,15 @@ pub struct EntrySize {
 }
 
 impl EntrySize {
-    pub fn new(metadata: &std::fs::Metadata) -> Self {
+    pub fn new(path: &Path, metadata: &std::fs::Metadata) -> Self {
+        let disc_size = match path.size_on_disk_fast(metadata) {
+            Ok(size) => Byte::from_u64(size),
+            Err(_) => Byte::default(),
+        };
+
         Self {
             size: Byte::from_u64(metadata.len()),
-            // TODO: Calculate disc size.
-            disc_size: Byte::from_u64(metadata.len()),
+            disc_size,
         }
     }
 
@@ -39,5 +45,3 @@ impl SubAssign for EntrySize {
         self.sub(rhs);
     }
 }
-
-// TODO: Display?
