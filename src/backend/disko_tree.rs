@@ -83,7 +83,7 @@ impl DiskoTree {
         // Because we manipulate the vector of children for each index.
         children_indexes.sort();
         children_indexes.reverse();
-        children_indexes.into_iter().for_each(|index| {
+        children_indexes.iter_mut().for_each(|index| {
             let Some(child) = children.get(*index) else {
                 // Provided index is out of bounds.
                 return;
@@ -100,7 +100,7 @@ impl DiskoTree {
                         .clone()
                         .write()
                         .expect("Failed to write to tree while deleting children.")
-                        .remove_subtree(&child)
+                        .remove_subtree(child)
                         .expect("Failed to delete chid.");
                 }
                 Err(e) => {
@@ -112,7 +112,7 @@ impl DiskoTree {
             }
         });
 
-        Self::backprop_size(&parent, deleted_size, BackpropOperation::Subtract);
+        Self::backprop_size(parent, deleted_size, BackpropOperation::Subtract);
         Ok(())
     }
 }
