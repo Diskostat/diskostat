@@ -25,14 +25,21 @@ impl<T> Node<T>
 where
     T: Clone,
 {
+    /// Returns a vector of the children nodes.
     pub fn get_children(&self) -> Vec<Arc<RwLock<Node<T>>>> {
         self.children.clone()
     }
 
+    /// Returns the parent node, if it exists.
     pub fn get_parent(&self) -> Option<Weak<RwLock<Node<T>>>> {
         self.parent.clone()
     }
 
+    /// Returns a vector of tuples containing the data and index of each child node.
+    ///
+    /// # Panics
+    ///
+    /// When could not read a children of current node.
     pub fn get_children_data(&self) -> Vec<(T, usize)> {
         self.children
             .iter()
