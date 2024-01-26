@@ -9,7 +9,7 @@ pub struct EntrySize {
 }
 
 impl EntrySize {
-    pub fn new(metadata: std::fs::Metadata) -> Self {
+    pub fn new(metadata: &std::fs::Metadata) -> Self {
         Self {
             size: Byte::from_u64(metadata.len()),
             // TODO: Calculate disc size.

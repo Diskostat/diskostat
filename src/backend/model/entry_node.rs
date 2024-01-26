@@ -77,7 +77,7 @@ impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
         let entry_type = Self::extract_entry_type(value);
         // TODO: Adjust! Get the real size of file on disk and or it's
         // real size.
-        let size = EntrySize::new(metadata.clone());
+        let size = EntrySize::new(&metadata);
 
         Ok(EntryNode {
             path: value.path().to_string_lossy().to_string(),
