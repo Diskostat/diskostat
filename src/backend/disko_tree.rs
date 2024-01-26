@@ -70,7 +70,7 @@ impl DiskoTree {
     pub(crate) fn delete_children(
         &self,
         parent: &Arc<RwLock<Node<EntryNode>>>,
-        children_indexes: &mut Vec<usize>,
+        children_indexes: &mut [usize],
     ) -> std::io::Result<()> {
         let children: Vec<Arc<RwLock<Node<EntryNode>>>> = parent
             .clone()
