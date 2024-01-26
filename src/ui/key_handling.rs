@@ -40,6 +40,7 @@ fn map_key_events_main_screen(event: Event) -> Option<Action> {
             KeyCode::Char('G') => Action::FocusLastItem,
             KeyCode::Right | KeyCode::Char('l') => Action::EnterFocusedDirectory,
             KeyCode::Left | KeyCode::Char('h') => Action::EnterParentDirectory,
+            KeyCode::Char('b') => Action::SwitchProgress,
             _ => return None,
         },
         _ => return None,

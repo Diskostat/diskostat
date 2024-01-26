@@ -31,6 +31,7 @@ pub enum Action {
     DeletePopupSelect,
     ConfirmDelete,
     ToggleSelection,
+    SwitchProgress,
     Resize(u16, u16),
 }
 
@@ -53,6 +54,7 @@ pub struct AppState {
     pub main_table: StatefulTable<PathBuf>,
     pub preview: Preview,
     pub focus: AppFocus,
+    pub show_bar: bool,
 }
 
 /// Application.
@@ -88,6 +90,7 @@ impl App {
             main_table: StatefulTable::with_focused(paths, Some(0)),
             preview,
             focus: AppFocus::MainScreen,
+            show_bar: false,
         };
 
         Ok(Self { state, tui })
@@ -211,6 +214,7 @@ impl App {
                 Action::EnterFocusedDirectory => self.state.main_table.clear_selected(),
                 Action::EnterParentDirectory => self.state.main_table.clear_selected(),
                 Action::Resize(w, h) => self.resize(w, h)?,
+                Action::SwitchProgress => self.state.show_bar = !self.state.show_bar,
             }
         }
         Ok(())

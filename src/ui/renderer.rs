@@ -1,4 +1,7 @@
-use std::{path::PathBuf, rc::Rc};
+use std::{
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
 use ratatui::{
     prelude::*,
@@ -10,6 +13,8 @@ use super::{
     color_theme::ColorTheme,
     components::{confirm_delete::ConfirmDeletePopup, table::StatefulTable},
 };
+
+const BAR_SIZE: usize = 10;
 
 pub struct Renderer {
     colors: ColorTheme,
@@ -132,7 +137,7 @@ impl Renderer {
         block: Block<'_>,
         _state: &mut AppState,
     ) {
-        let commands = Paragraph::new("Commands: q(uit), s(elect)")
+        let commands = Paragraph::new("Commands: q(uit), s(elect), b(ar)")
             .block(block)
             .style(Style::default().fg(self.colors.fg));
         frame.render_widget(commands, area);
@@ -145,7 +150,14 @@ impl Renderer {
         block: Block<'_>,
         state: &mut AppState,
     ) {
-        self.render_table(frame, area, block, &mut state.main_table, &state.focus);
+        self.render_table(
+            frame,
+            area,
+            block,
+            &mut state.main_table,
+            &state.focus,
+            state.show_bar,
+        );
     }
 
     fn render_right_panel(
@@ -157,7 +169,7 @@ impl Renderer {
     ) {
         match &mut state.preview {
             Preview::Table(table) => {
-                self.render_preview_table(frame, area, block, table, &state.focus)
+                self.render_preview_table(frame, area, block, table, &state.focus, state.show_bar)
             }
             Preview::Text(text) => self.render_preview_paragraph(frame, area, block, text),
             Preview::EmptyDirectory => self.render_preview_empty(frame, area, block),
@@ -170,41 +182,96 @@ impl Renderer {
         area: Rect,
         block: Block<'_>,
         table_state: &mut StatefulTable<PathBuf>,
-        focus: &AppFocus,
+        app_focus: &AppFocus,
+        show_bar: bool,
     ) {
         let rows = table_state.items.iter().enumerate().map(|(index, data)| {
+            let is_focused = table_state.is_focused(index);
+            let is_selected = table_state.is_selected(index);
+
+            let size = ((index * 10) % 101) as u64;
             Row::new(vec![
-                Cell::from(Span::styled(
-                    if table_state.is_selected(index) {
-                        "▌"
-                    } else {
-                        ""
-                    },
-                    Style::default().fg(self.colors.tertiary),
-                )),
-                Cell::from(Text::from(data.file_name().unwrap().to_str().unwrap())),
+                self.get_selection_cell(is_selected),
+                self.get_name_cell(data, is_focused, app_focus),
+                self.get_size_progress_cell(size, 100, show_bar, is_focused, app_focus),
             ])
-            .style(self.get_row_style(index, table_state, focus))
+            .style(self.get_row_style(is_focused, app_focus))
         });
 
-        let table = Table::new(rows, [Constraint::Length(1), Constraint::Min(10)]).block(block);
+        let table = Table::default()
+            .rows(rows)
+            .widths([
+                Constraint::Length(1),
+                Constraint::Min(10),
+                // + 5 for padding
+                Constraint::Length(BAR_SIZE as u16 + 5),
+            ])
+            .block(block);
 
         frame.render_stateful_widget(table, area, &mut table_state.state);
     }
 
-    fn get_row_style(
+    fn get_row_style(&self, is_focused: bool, app_focus: &AppFocus) -> Style {
+        match app_focus {
+            AppFocus::MainScreen if is_focused => Style::default().bg(self.colors.primary),
+            _ => Style::default(),
+        }
+    }
+
+    fn get_selection_cell<'a>(&self, is_selected: bool) -> Cell<'a> {
+        Cell::from(Span::styled(
+            if is_selected { "▌" } else { "" },
+            Style::default().fg(self.colors.tertiary),
+        ))
+    }
+
+    fn get_name_cell<'a>(
         &self,
-        index: usize,
-        table_state: &StatefulTable<PathBuf>,
-        focus: &AppFocus,
-    ) -> Style {
-        if table_state.is_focused(index) {
-            match focus {
-                AppFocus::MainScreen => Style::default().bg(self.colors.primary).fg(self.colors.bg),
-                AppFocus::ConfirmDeletePopup(_) => Style::default().hidden(),
-            }
+        path: &'a Path,
+        is_focused: bool,
+        app_focus: &AppFocus,
+    ) -> Cell<'a> {
+        let style = match app_focus {
+            AppFocus::MainScreen if is_focused => Style::default().fg(self.colors.bg),
+            _ => Style::default(),
+        };
+
+        Cell::from(Text::from(path.file_name().unwrap().to_str().unwrap())).style(style)
+    }
+
+    fn get_size_progress_cell<'a>(
+        &self,
+        size: u64,
+        total_size: u64,
+        show_bar: bool,
+        is_focused: bool,
+        app_focus: &AppFocus,
+    ) -> Cell<'a> {
+        let rate = size as f64 / total_size as f64;
+        let filled = (rate * BAR_SIZE as f64) as usize;
+        let empty = BAR_SIZE - filled;
+
+        let red = (rate * 255.0) as u8;
+        let green = 255 - (rate * 255.0) as u8;
+        let blue = 50 - (rate * 50.0) as u8;
+        let color = Color::Rgb(red, green, blue);
+
+        let fg = match app_focus {
+            AppFocus::MainScreen if is_focused => self.colors.bg,
+            _ => color,
+        };
+
+        if show_bar {
+            Cell::from(Line::from(vec![
+                Span::from("\u{25AC}".repeat(filled)).set_style(Style::default().fg(color)),
+                Span::from("\u{25AC}".repeat(empty)).set_style(Style::default().fg(self.colors.bg)),
+            ]))
         } else {
-            Style::default()
+            Cell::from(Line::from(vec![Span::from(format!(
+                "{:.1}%",
+                rate * 100.0
+            ))
+            .set_style(Style::default().fg(fg))]))
         }
     }
 
@@ -214,9 +281,10 @@ impl Renderer {
         area: Rect,
         block: Block<'_>,
         table_state: &mut StatefulTable<PathBuf>,
-        focus: &AppFocus,
+        app_focus: &AppFocus,
+        show_bar: bool,
     ) {
-        self.render_table(frame, area, block, table_state, focus);
+        self.render_table(frame, area, block, table_state, app_focus, show_bar);
     }
 
     fn render_preview_empty(&self, frame: &mut Frame, area: Rect, block: Block<'_>) {
