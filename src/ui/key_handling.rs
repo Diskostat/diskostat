@@ -30,7 +30,6 @@ pub fn map_key_events(event: Event, focus: &AppFocus) -> Option<Action> {
 
 fn map_key_events_main_screen(event: Event) -> Option<Action> {
     let action = match event {
-        Event::Tick => Action::Tick,
         Event::Key(key) => match key.code {
             KeyCode::Esc | KeyCode::Char('q') => Action::Quit,
             KeyCode::Char('s') => Action::ToggleSelection,
@@ -50,7 +49,6 @@ fn map_key_events_main_screen(event: Event) -> Option<Action> {
 
 fn map_key_events_confirm_delete_popup(event: Event) -> Option<Action> {
     let action = match event {
-        Event::Tick => Action::Tick,
         Event::Key(key) => match key.code {
             KeyCode::Esc | KeyCode::Char('n' | 'q') => Action::ShowMainScreen,
             KeyCode::Right | KeyCode::Char('l' | 'h') | KeyCode::Left => {
