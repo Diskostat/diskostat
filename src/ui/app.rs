@@ -147,6 +147,8 @@ impl App {
             self.update(action)?;
         }
 
+        self.tree.stop_traversing();
+
         // Exit the user interface.
         self.tui.exit()?;
         Ok(())
