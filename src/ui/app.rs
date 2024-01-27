@@ -213,8 +213,8 @@ impl App {
                 }
                 Action::EnterFocusedDirectory => self.state.main_table.clear_selected(),
                 Action::EnterParentDirectory => self.state.main_table.clear_selected(),
-                Action::Resize(w, h) => self.resize(w, h)?,
                 Action::SwitchProgress => self.state.show_bar = !self.state.show_bar,
+                Action::Resize(w, h) => self.resize(w, h)?,
             }
         }
         Ok(())
