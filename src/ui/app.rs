@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read, sync::mpsc};
 
-use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
+use ratatui::{backend::CrosstermBackend, layout::Rect, style::Color, Terminal};
 
 use crate::backend::{
     disko_tree::DiskoTree,
@@ -93,7 +93,12 @@ pub struct App {
 
 impl App {
     /// Constructs a new instance of [`App`].
-    pub fn new(tick_rate: u64, render_rate: u64, tree: DiskoTree) -> Result<Self> {
+    pub fn new(
+        tick_rate: u64,
+        render_rate: u64,
+        tree: DiskoTree,
+        black_and_white: bool,
+    ) -> Result<Self> {
         // Initialize the terminal user interface.
         let backend = CrosstermBackend::new(std::io::stdout());
         let terminal = Terminal::new(backend)?;
@@ -101,7 +106,22 @@ impl App {
         let (sender, receiver) = mpsc::channel();
         let events = EventHandler::new(tick_rate, render_rate, sender, receiver);
 
-        let renderer = renderer::Renderer::new(ColorTheme::default());
+        let color_scheme = if black_and_white {
+            ColorTheme::new(
+                Color::White,
+                Color::White,
+                Color::White,
+                Color::White,
+                Color::Black,
+                Color::Black,
+                Color::White,
+                false,
+            )
+        } else {
+            ColorTheme::default()
+        };
+
+        let renderer = renderer::Renderer::new(color_scheme);
         let tui = Tui::new(terminal, events, renderer);
 
         let state = AppState {

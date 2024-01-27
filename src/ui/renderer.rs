@@ -464,6 +464,7 @@ impl Renderer {
             if is_selected { "▌" } else { "" },
             Style::default().fg(self.colors.tertiary),
         ))
+        .style(Style::default().bg(Color::Reset))
     }
 
     fn get_name_cell<'a>(
@@ -508,9 +509,16 @@ impl Renderer {
         let red = (rate * 255.0) as u8;
         let green = 255 - (rate * 255.0) as u8;
         let blue = 50 - (rate * 50.0) as u8;
-        let color = Color::Rgb(red, green, blue);
 
-        let fg = match app_focus {
+        let (color, background) = if self.colors.colorful_bar {
+            (Color::Rgb(red, green, blue), self.colors.secondary_bg)
+        } else if is_focused {
+            (self.colors.primary_bg, self.colors.fg)
+        } else {
+            (self.colors.fg, self.colors.secondary_bg)
+        };
+
+        let percentages_fg = match app_focus {
             AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => self.colors.primary_bg,
             _ => color,
         };
@@ -518,15 +526,14 @@ impl Renderer {
         if show_bar {
             Cell::from(Line::from(vec![
                 Span::from("\u{25AC}".repeat(filled)).set_style(Style::default().fg(color)),
-                Span::from("\u{25AC}".repeat(empty))
-                    .set_style(Style::default().fg(self.colors.secondary_bg)),
+                Span::from("\u{25AC}".repeat(empty)).set_style(Style::default().fg(background)),
             ]))
         } else {
             Cell::from(Line::from(vec![Span::from(format!(
                 "{:.1}%",
                 rate * 100.0
             ))
-            .set_style(Style::default().fg(fg))]))
+            .set_style(Style::default().fg(percentages_fg))]))
         }
     }
 
@@ -649,9 +656,9 @@ impl Renderer {
         let mut no = Span::from("No").style(Style::default().fg(self.colors.fg));
 
         if confirm_delete_popup.confirmed() {
-            yes = yes.fg(self.colors.primary);
+            yes = yes.fg(self.colors.primary_bg).bg(self.colors.primary);
         } else {
-            no = no.fg(self.colors.primary);
+            no = no.fg(self.colors.primary_bg).bg(self.colors.primary);
         }
 
         frame.render_widget(Paragraph::new(yes).alignment(Alignment::Center), yes_area);

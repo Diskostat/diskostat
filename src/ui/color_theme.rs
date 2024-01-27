@@ -15,6 +15,8 @@ pub struct ColorTheme {
     pub secondary_bg: Color,
     /// Used for highlighting text.
     pub highlight: Color,
+    /// Whether to use a colorful progress bar and percentages.
+    pub colorful_bar: bool,
 }
 
 impl ColorTheme {
@@ -26,6 +28,7 @@ impl ColorTheme {
         primary_bg: Color,
         secondary_bg: Color,
         highlight: Color,
+        colorful_bar: bool,
     ) -> Self {
         Self {
             primary,
@@ -35,6 +38,7 @@ impl ColorTheme {
             primary_bg,
             secondary_bg,
             highlight,
+            colorful_bar,
         }
     }
 }
@@ -49,6 +53,7 @@ impl Default for ColorTheme {
             primary_bg: Color::Black,
             secondary_bg: Color::DarkGray,
             highlight: Color::Red,
+            colorful_bar: true,
         }
     }
 }

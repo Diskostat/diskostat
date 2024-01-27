@@ -32,6 +32,10 @@ struct Arguments {
     /// How many times the application ticks per second.
     #[arg(short, long, default_value_t = 4)]
     tick_rate: u64,
+
+    /// Enable black and white mode.
+    #[arg(long, default_value = "false")]
+    black_and_white: bool,
 }
 
 fn main() -> Result<()> {
@@ -56,7 +60,12 @@ fn main() -> Result<()> {
     }
 
     // Create and start the application.
-    let mut app = App::new(arguments.tick_rate, DEFAULT_RENDER_RATE, tree)?;
+    let mut app = App::new(
+        arguments.tick_rate,
+        DEFAULT_RENDER_RATE,
+        tree,
+        arguments.black_and_white,
+    )?;
     app.run()?;
     Ok(())
 }
