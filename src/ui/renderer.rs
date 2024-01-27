@@ -261,7 +261,7 @@ impl Renderer {
         is_focused: bool,
         app_focus: &AppFocus,
     ) -> Cell<'a> {
-        let rate = size as f64 / total_size as f64;
+        let rate = (size as f64 / total_size as f64).min(1.0);
         let filled = (rate * BAR_SIZE as f64) as usize;
         let empty = BAR_SIZE - filled;
 
@@ -289,6 +289,7 @@ impl Renderer {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_preview_table(
         &self,
         frame: &mut Frame,
