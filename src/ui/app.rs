@@ -119,6 +119,10 @@ impl App {
             )
             .expect("child directory at the given index should exist");
 
+        if subdir_entries.is_empty() {
+            return Preview::EmptyDirectory;
+        }
+
         Preview::Table(StatefulTable::with_items(subdir_entries))
     }
 
