@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, sync::mpsc};
+use std::{fs::File, io::Read, path::PathBuf, sync::mpsc};
 
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
@@ -101,9 +101,14 @@ impl App {
     }
 
     fn get_preview_file(&self, entry: &EntryNodeView) -> Preview {
-        if let Ok(content) = fs::read_to_string(&entry.path) {
-            return Preview::Text(content);
-        }
+        let Ok(file) = File::open(&entry.path) else {
+            return Preview::Empty;
+        };
+        let bytes = 3200;
+        let mut buffer = String::with_capacity(bytes);
+        if file.take(bytes as u64).read_to_string(&mut buffer).is_ok() {
+            return Preview::Text(buffer);
+        };
         // If we can't read the file, assume it is not a text file and don't
         // show anything.
         Preview::Empty
