@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use byte_unit::Byte;
 use ratatui::{
     prelude::*,
     widgets::{block::Title, Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
@@ -213,6 +214,7 @@ impl Renderer {
                     is_focused,
                     app_focus,
                 ),
+                self.get_size_cell(Byte::from_u64(data.size), is_focused, app_focus),
             ])
             .style(self.get_row_style(is_focused, app_focus))
         });
@@ -222,8 +224,10 @@ impl Renderer {
             .widths([
                 Constraint::Length(1),
                 Constraint::Min(10),
-                // + 5 for padding
-                Constraint::Length(BAR_SIZE as u16 + 5),
+                // + 2 for padding
+                Constraint::Length(BAR_SIZE as u16 + 2),
+                // + 3 for padding (example: 123.45 KB)
+                Constraint::Length(12),
             ])
             .block(block);
 
@@ -287,6 +291,21 @@ impl Renderer {
             ))
             .set_style(Style::default().fg(fg))]))
         }
+    }
+
+    fn get_size_cell<'a>(&self, size: Byte, is_focused: bool, app_focus: &AppFocus) -> Cell<'a> {
+        let fg = match app_focus {
+            AppFocus::MainScreen if is_focused => self.colors.bg,
+            _ => self.colors.fg,
+        };
+
+        let appropriate_size = size.get_appropriate_unit(byte_unit::UnitType::Decimal);
+
+        Cell::from(Line::from(vec![Span::from(format!(
+            "{:>10.2}",
+            appropriate_size
+        ))
+        .set_style(Style::default().fg(fg))]))
     }
 
     #[allow(clippy::too_many_arguments)]
