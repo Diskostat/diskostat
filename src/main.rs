@@ -44,7 +44,7 @@ fn main() -> Result<()> {
     }
 
     // Create and start the application.
-    let mut app = App::new(DEFAULT_TICK_RATE, DEFAULT_RENDER_RATE)?;
+    let mut app = App::new(DEFAULT_TICK_RATE, DEFAULT_RENDER_RATE, arguments.path)?;
     app.run()?;
     Ok(())
 }

@@ -9,8 +9,6 @@ use super::{
     tree_walk_state::CustomJWalkClientState,
 };
 
-use byte_unit::Byte;
-
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub(crate) struct EntryNode {
@@ -25,7 +23,7 @@ pub(crate) struct EntryNode {
 pub struct EntryNodeView {
     pub name: String,
     pub path: PathBuf,
-    pub size: Byte,
+    pub size: u64,
     pub descendants_count: usize,
     pub entry_type: EntryType,
     pub index_to_original_node: Option<usize>,
@@ -36,7 +34,7 @@ impl EntryNodeView {
         Self {
             name: extract_file_name(&path),
             path,
-            size: Byte::from_u64(0),
+            size: 0,
             descendants_count: 0,
             entry_type: EntryType::Directory,
             index_to_original_node: None,

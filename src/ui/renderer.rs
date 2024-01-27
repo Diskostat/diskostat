@@ -1,12 +1,11 @@
-use std::{
-    path::{Path, PathBuf},
-    rc::Rc,
-};
+use std::rc::Rc;
 
 use ratatui::{
     prelude::*,
     widgets::{block::Title, Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
+
+use crate::backend::model::entry_node::EntryNodeView;
 
 use super::{
     app::{AppFocus, AppState, Preview},
@@ -122,9 +121,9 @@ impl Renderer {
         frame: &mut Frame,
         area: Rect,
         block: Block<'_>,
-        _state: &mut AppState,
+        state: &mut AppState,
     ) {
-        let path = Paragraph::new("~/example")
+        let path = Paragraph::new(state.current_directory.path.display().to_string())
             .block(block)
             .style(Style::default().fg(self.colors.tertiary));
         frame.render_widget(path, area);
@@ -154,6 +153,7 @@ impl Renderer {
             frame,
             area,
             block,
+            &state.current_directory,
             &mut state.main_table,
             &state.focus,
             state.show_bar,
@@ -169,10 +169,22 @@ impl Renderer {
     ) {
         match &mut state.preview {
             Preview::Table(table) => {
-                self.render_preview_table(frame, area, block, table, &state.focus, state.show_bar)
+                self.render_preview_table(
+                    frame,
+                    area,
+                    block,
+                    state
+                        .main_table
+                        .focused()
+                        .expect("a directory should be focused"),
+                    table,
+                    &state.focus,
+                    state.show_bar,
+                );
             }
             Preview::Text(text) => self.render_preview_paragraph(frame, area, block, text),
-            Preview::EmptyDirectory => self.render_preview_empty(frame, area, block),
+            Preview::EmptyDirectory => self.render_preview_empty_directory(frame, area, block),
+            Preview::Empty => frame.render_widget(block, area),
         }
     }
 
@@ -181,7 +193,8 @@ impl Renderer {
         frame: &mut Frame,
         area: Rect,
         block: Block<'_>,
-        table_state: &mut StatefulTable<PathBuf>,
+        parent: &EntryNodeView,
+        table_state: &mut StatefulTable<EntryNodeView>,
         app_focus: &AppFocus,
         show_bar: bool,
     ) {
@@ -189,11 +202,16 @@ impl Renderer {
             let is_focused = table_state.is_focused(index);
             let is_selected = table_state.is_selected(index);
 
-            let size = ((index * 10) % 101) as u64;
             Row::new(vec![
                 self.get_selection_cell(is_selected),
-                self.get_name_cell(data, is_focused, app_focus),
-                self.get_size_progress_cell(size, 100, show_bar, is_focused, app_focus),
+                self.get_name_cell(data.name.clone(), is_focused, app_focus),
+                self.get_size_progress_cell(
+                    data.size,
+                    parent.size,
+                    show_bar,
+                    is_focused,
+                    app_focus,
+                ),
             ])
             .style(self.get_row_style(is_focused, app_focus))
         });
@@ -225,18 +243,13 @@ impl Renderer {
         ))
     }
 
-    fn get_name_cell<'a>(
-        &self,
-        path: &'a Path,
-        is_focused: bool,
-        app_focus: &AppFocus,
-    ) -> Cell<'a> {
+    fn get_name_cell<'a>(&self, name: String, is_focused: bool, app_focus: &AppFocus) -> Cell<'a> {
         let style = match app_focus {
             AppFocus::MainScreen if is_focused => Style::default().fg(self.colors.bg),
             _ => Style::default(),
         };
 
-        Cell::from(Text::from(path.file_name().unwrap().to_str().unwrap())).style(style)
+        Cell::from(Text::from(name)).style(style)
     }
 
     fn get_size_progress_cell<'a>(
@@ -280,14 +293,15 @@ impl Renderer {
         frame: &mut Frame,
         area: Rect,
         block: Block<'_>,
-        table_state: &mut StatefulTable<PathBuf>,
+        parent: &EntryNodeView,
+        table_state: &mut StatefulTable<EntryNodeView>,
         app_focus: &AppFocus,
         show_bar: bool,
     ) {
-        self.render_table(frame, area, block, table_state, app_focus, show_bar);
+        self.render_table(frame, area, block, parent, table_state, app_focus, show_bar);
     }
 
-    fn render_preview_empty(&self, frame: &mut Frame, area: Rect, block: Block<'_>) {
+    fn render_preview_empty_directory(&self, frame: &mut Frame, area: Rect, block: Block<'_>) {
         let text = Text::styled(
             "Empty directory",
             Style::new()

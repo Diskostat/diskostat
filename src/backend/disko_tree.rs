@@ -9,7 +9,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use byte_unit::Byte;
 use jwalk::{DirEntry, Parallelism::RayonNewPool, WalkDirGeneric};
 
 use super::model::{
@@ -55,7 +54,7 @@ impl DiskoTree {
                 EntryNodeView {
                     name: child.data.name.clone(),
                     path: child.data.path.clone(),
-                    size: Byte::from_u64(child.data.size),
+                    size: child.data.size,
                     descendants_count: child.data.descendants_count,
                     entry_type: child.data.entry_type,
                     index_to_original_node: Some(index),
@@ -107,7 +106,7 @@ impl DiskoTree {
         let current_directory_view = EntryNodeView {
             name: current_directory.data.name.clone(),
             path: current_directory.data.path.clone(),
-            size: Byte::from_u64(current_directory.data.size),
+            size: current_directory.data.size,
             descendants_count: current_directory.data.descendants_count,
             entry_type: current_directory.data.entry_type,
             index_to_original_node: None,

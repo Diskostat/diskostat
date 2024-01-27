@@ -2,6 +2,11 @@ use std::{fs, path::PathBuf, sync::mpsc};
 
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
+use crate::backend::{
+    disko_tree::DiskoTree,
+    model::{entry_node::EntryNodeView, entry_type::EntryType},
+};
+
 use super::{
     color_theme::ColorTheme,
     components::{confirm_delete::ConfirmDeletePopup, table::StatefulTable},
@@ -11,7 +16,7 @@ use super::{
     tui::Tui,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>;
 
@@ -38,8 +43,9 @@ pub enum Action {
 /// Possible application preview states.
 pub enum Preview {
     Text(String),
-    Table(StatefulTable<PathBuf>),
+    Table(StatefulTable<EntryNodeView>),
     EmptyDirectory,
+    Empty,
 }
 
 pub enum AppFocus {
@@ -50,10 +56,10 @@ pub enum AppFocus {
 /// Application state.
 pub struct AppState {
     pub should_quit: bool,
-    pub parent_dir: Option<PathBuf>,
-    pub main_table: StatefulTable<PathBuf>,
+    pub main_table: StatefulTable<EntryNodeView>,
     pub preview: Preview,
     pub focus: AppFocus,
+    pub current_directory: EntryNodeView,
     pub show_bar: bool,
 }
 
@@ -61,11 +67,12 @@ pub struct AppState {
 pub struct App {
     state: AppState,
     tui: Tui,
+    tree: DiskoTree,
 }
 
 impl App {
     /// Constructs a new instance of [`App`].
-    pub fn new(tick_rate: f64, render_rate: f64) -> Result<Self> {
+    pub fn new(tick_rate: f64, render_rate: f64, root: PathBuf) -> Result<Self> {
         // Initialize the terminal user interface.
         let backend = CrosstermBackend::new(std::io::stdout());
         let terminal = Terminal::new(backend)?;
@@ -76,52 +83,46 @@ impl App {
         let renderer = renderer::Renderer::new(ColorTheme::default());
         let tui = Tui::new(terminal, events, renderer);
 
-        let parent = PathBuf::from(".");
-        let paths = fs::read_dir(&parent)?
-            .map(|file| file.unwrap().path())
-            .collect::<Vec<PathBuf>>();
-
-        let first = paths.first().unwrap();
-        let preview = Self::get_preview(first)?;
-
         let state = AppState {
             should_quit: false,
-            parent_dir: Some(parent),
-            main_table: StatefulTable::with_focused(paths, Some(0)),
-            preview,
+            main_table: StatefulTable::with_focused(vec![], None),
+            preview: Preview::Empty,
             focus: AppFocus::MainScreen,
+            current_directory: EntryNodeView::new_dir(root.clone()),
             show_bar: false,
         };
 
-        Ok(Self { state, tui })
+        let tree = DiskoTree::new(root);
+
+        Ok(Self { state, tui, tree })
     }
 
-    fn get_preview(path: &PathBuf) -> Result<Preview> {
-        if path.is_dir() {
-            let paths = Self::get_paths(path)?;
-            if paths.is_empty() {
-                return Ok(Preview::EmptyDirectory);
-            }
-
-            Ok(Preview::Table(StatefulTable::with_items(paths)))
-        } else {
-            Ok(Preview::Text(fs::read_to_string(path)?))
+    fn get_preview_file(&self, entry: &EntryNodeView) -> Preview {
+        if let Ok(content) = fs::read_to_string(&entry.path) {
+            return Preview::Text(content);
         }
+        // If we can't read the file, assume it is not a text file and don't
+        // show anything.
+        Preview::Empty
     }
 
-    fn get_paths(path: &PathBuf) -> Result<Vec<PathBuf>> {
-        if !path.is_dir() {
-            return Ok(Vec::new());
-        }
+    fn get_preview_directory(&self, entry: &EntryNodeView) -> Result<Preview> {
+        let subdir_entries = self
+            .tree
+            .get_subdir_of_current_dir_view(
+                entry
+                    .index_to_original_node
+                    .context("failed to get index to original node")?,
+            )
+            .context("failed to get child directory at the given index")?;
 
-        Ok(fs::read_dir(path)?
-            .map(|file| file.unwrap().path())
-            .collect::<Vec<PathBuf>>())
+        Ok(Preview::Table(StatefulTable::with_items(subdir_entries)))
     }
 
     /// Runs the main loop of the application.
     pub fn run(&mut self) -> Result<()> {
         self.tui.enter()?;
+        self.tree.background_traverse();
 
         // Start the main loop.
         while !self.state.should_quit {
@@ -144,7 +145,14 @@ impl App {
     }
 
     /// Handles the tick event of the terminal.
-    pub fn tick(&mut self) {}
+    pub fn tick(&mut self) {
+        let Some((current_directory, entries)) = self.tree.get_current_dir_view() else {
+            return;
+        };
+        self.state.current_directory = current_directory;
+        self.state.main_table =
+            StatefulTable::with_focused(entries, self.state.main_table.focused_index());
+    }
 
     /// Handles the resize event of the terminal.
     pub fn resize(&mut self, width: u16, height: u16) -> Result<()> {
@@ -158,8 +166,13 @@ impl App {
     }
 
     fn update_focus(&mut self) -> Result<()> {
-        let focused = self.state.main_table.focused().unwrap().clone();
-        self.state.preview = Self::get_preview(&focused)?;
+        let Some(focused) = self.state.main_table.focused() else {
+            return Ok(());
+        };
+        self.state.preview = match focused.entry_type {
+            EntryType::File(_) => self.get_preview_file(focused),
+            EntryType::Directory => self.get_preview_directory(focused)?,
+        };
         Ok(())
     }
 
