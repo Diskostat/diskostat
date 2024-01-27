@@ -10,6 +10,7 @@ pub fn map_key_events(event: Event, focus: &AppFocus) -> Option<Action> {
     // handle the events that are the same for all foci
     let action = match event {
         Event::Tick => Some(Action::Tick),
+        Event::TraversalFinished => Some(Action::SetTraversalFinished),
         Event::Resize(w, h) => Some(Action::Resize(w, h)),
         Event::Key(key) => match key.code {
             KeyCode::Char('c' | 'C') if key.modifiers == KeyModifiers::CONTROL => {

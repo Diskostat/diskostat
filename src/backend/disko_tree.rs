@@ -3,13 +3,15 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, RwLock,
+        mpsc, Arc, RwLock,
     },
     thread,
 };
 
 use anyhow::{Context, Result};
 use jwalk::{DirEntry, Parallelism::RayonNewPool, WalkDirGeneric};
+
+use crate::ui::event_handling::Event;
 
 use super::model::{
     entry_node::{EntryNode, EntryNodeView},
@@ -69,7 +71,27 @@ impl DiskoTree {
     /// Returns an error if the current directory is not set, i.e., the
     /// traversal has not yet computed a root or if the current directory
     /// has no parent.
-    pub(crate) fn go_to_parent_directory(&mut self) -> Result<()> {
+    pub(crate) fn switch_to_parent_directory(&mut self) -> Result<()> {
+        let current_directory_arc = self
+            .current_directory
+            .clone()
+            .context("Current directory not set")?;
+        let current_directory = current_directory_arc
+            .read()
+            .expect("Failed to read current directory");
+        let parent = current_directory
+            .get_parent()
+            .context("Failed to get parent of current directory")?
+            .upgrade()
+            .expect("Failed to upgrade weak reference to parent of current directory");
+        self.current_directory = Some(parent);
+        Ok(())
+    }
+
+    /// Switch the current working directory to its child at the given index.
+    /// Returns an error if the current directory is not set, i.e., the
+    /// traversal has not yet computed a root or if the index is out of bounds.
+    pub(crate) fn switch_to_subdirectory(&mut self, index: usize) -> Result<()> {
         let current_directory_arc = self
             .current_directory
             .take()
@@ -77,12 +99,10 @@ impl DiskoTree {
         let current_directory = current_directory_arc
             .read()
             .expect("Failed to read current directory");
-        let parent = current_directory
-            .get_parent()
-            .expect("Failed to get parent of current directory")
-            .upgrade()
-            .expect("Failed to upgrade weak reference to parent of current directory");
-        self.current_directory = Some(parent);
+        let subdir_arc = current_directory
+            .get_child(index)
+            .context("Failed to get child at given index")?;
+        self.current_directory = Some(subdir_arc);
         Ok(())
     }
 
@@ -155,7 +175,7 @@ impl DiskoTree {
     /// ends, the file system from given root path is evauluated and sizes
     /// are calculated.
     /// This method is non-blocking.
-    pub(crate) fn background_traverse(&mut self) {
+    pub(crate) fn background_traverse(&mut self, sender: mpsc::Sender<Event>) {
         let tree = self.tree.clone();
         let is_traversing = self.is_traversing.clone();
         let stop_traversing = self.stop_traversing.clone();
@@ -170,6 +190,8 @@ impl DiskoTree {
             }
 
             is_traversing.store(false, Ordering::Release);
+            // Here we just ignore if the event handler has stopped.
+            let _ = sender.send(Event::TraversalFinished);
         }));
     }
 

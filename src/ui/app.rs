@@ -16,7 +16,7 @@ use super::{
     tui::Tui,
 };
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>;
 
@@ -24,6 +24,7 @@ pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBacken
 pub enum Action {
     Tick,
     Quit,
+    SetTraversalFinished,
     ShowMainScreen,
     ShowConfirmDeletePopup,
     FocusNextItem,
@@ -60,6 +61,7 @@ pub struct AppState {
     pub preview: Preview,
     pub focus: AppFocus,
     pub current_directory: EntryNodeView,
+    pub traversal_finished: bool,
     pub show_bar: bool,
 }
 
@@ -89,6 +91,7 @@ impl App {
             preview: Preview::Empty,
             focus: AppFocus::MainScreen,
             current_directory: EntryNodeView::new_dir(root.clone()),
+            traversal_finished: false,
             show_bar: false,
         };
 
@@ -106,23 +109,24 @@ impl App {
         Preview::Empty
     }
 
-    fn get_preview_directory(&self, entry: &EntryNodeView) -> Result<Preview> {
+    fn get_preview_directory(&self, entry: &EntryNodeView) -> Preview {
         let subdir_entries = self
             .tree
             .get_subdir_of_current_dir_view(
                 entry
                     .index_to_original_node
-                    .context("failed to get index to original node")?,
+                    .expect("should never get the root directory as a child"),
             )
-            .context("failed to get child directory at the given index")?;
+            .expect("child directory at the given index should exist");
 
-        Ok(Preview::Table(StatefulTable::with_items(subdir_entries)))
+        Preview::Table(StatefulTable::with_items(subdir_entries))
     }
 
     /// Runs the main loop of the application.
     pub fn run(&mut self) -> Result<()> {
         self.tui.enter()?;
-        self.tree.background_traverse();
+        let sender = self.tui.events.get_event_sender();
+        self.tree.background_traverse(sender);
 
         // Start the main loop.
         while !self.state.should_quit {
@@ -144,14 +148,38 @@ impl App {
         Ok(())
     }
 
-    /// Handles the tick event of the terminal.
-    pub fn tick(&mut self) {
+    pub fn update_view_on_switch_dir(&mut self) {
+        let Some((current_directory, entries)) = self.tree.get_current_dir_view() else {
+            return;
+        };
+        self.state.current_directory = current_directory;
+        let focused_index = {
+            if entries.is_empty() {
+                None
+            } else {
+                Some(0)
+            }
+        };
+        self.state.main_table = StatefulTable::with_focused(entries, focused_index);
+        self.update_focus();
+    }
+
+    pub fn update_view(&mut self) {
         let Some((current_directory, entries)) = self.tree.get_current_dir_view() else {
             return;
         };
         self.state.current_directory = current_directory;
         self.state.main_table =
             StatefulTable::with_focused(entries, self.state.main_table.focused_index());
+        self.update_focus();
+    }
+
+    /// Handles the tick event of the terminal.
+    pub fn tick(&mut self) {
+        if self.state.traversal_finished {
+            return;
+        }
+        self.update_view();
     }
 
     /// Handles the resize event of the terminal.
@@ -165,15 +193,15 @@ impl App {
         self.state.should_quit = true;
     }
 
-    fn update_focus(&mut self) -> Result<()> {
+    fn update_focus(&mut self) {
         let Some(focused) = self.state.main_table.focused() else {
-            return Ok(());
+            self.state.preview = Preview::Empty;
+            return;
         };
         self.state.preview = match focused.entry_type {
             EntryType::File(_) => self.get_preview_file(focused),
-            EntryType::Directory => self.get_preview_directory(focused)?,
+            EntryType::Directory => self.get_preview_directory(focused),
         };
-        Ok(())
     }
 
     /// Handle the application actions.
@@ -182,25 +210,29 @@ impl App {
             match action {
                 Action::Tick => self.tick(),
                 Action::Quit => self.quit(),
+                Action::SetTraversalFinished => {
+                    self.state.traversal_finished = true;
+                    self.update_view();
+                }
                 Action::ShowMainScreen => self.state.focus = AppFocus::MainScreen,
                 Action::ShowConfirmDeletePopup => {
                     self.state.focus = AppFocus::ConfirmDeletePopup(ConfirmDeletePopup::new(true));
                 }
                 Action::FocusNextItem => {
                     self.state.main_table.focus_next();
-                    self.update_focus()?;
+                    self.update_focus();
                 }
                 Action::FocusPreviousItem => {
                     self.state.main_table.focus_previous();
-                    self.update_focus()?;
+                    self.update_focus();
                 }
                 Action::FocusFirstItem => {
                     self.state.main_table.focus_first();
-                    self.update_focus()?;
+                    self.update_focus();
                 }
                 Action::FocusLastItem => {
                     self.state.main_table.focus_last();
-                    self.update_focus()?;
+                    self.update_focus();
                 }
                 Action::DeletePopupSwitchConfirmation => {
                     if let AppFocus::ConfirmDeletePopup(popup) = &mut self.state.focus {
@@ -224,8 +256,32 @@ impl App {
                         self.state.main_table.toggle_selection(focused);
                     };
                 }
-                Action::EnterFocusedDirectory => self.state.main_table.clear_selected(),
-                Action::EnterParentDirectory => self.state.main_table.clear_selected(),
+                Action::EnterFocusedDirectory => {
+                    if let Some(focused) = self.state.main_table.focused() {
+                        if !matches!(focused.entry_type, EntryType::Directory) {
+                            return Ok(());
+                        }
+                        if self
+                            .tree
+                            .switch_to_subdirectory(
+                                focused
+                                    .index_to_original_node
+                                    .expect("root should never be focused"),
+                            )
+                            .is_ok()
+                        {
+                            self.update_view_on_switch_dir();
+                            self.state.main_table.clear_selected();
+                        }
+                    }
+                }
+                Action::EnterParentDirectory => {
+                    // Ignore if there is no parent anymore.
+                    if self.tree.switch_to_parent_directory().is_ok() {
+                        self.update_view_on_switch_dir();
+                        self.state.main_table.clear_selected();
+                    }
+                }
                 Action::SwitchProgress => self.state.show_bar = !self.state.show_bar,
                 Action::Resize(w, h) => self.resize(w, h)?,
             }

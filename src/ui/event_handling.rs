@@ -19,6 +19,8 @@ pub enum Event {
     Render,
     /// Terminal tick.
     Tick,
+    /// The traversal has finished.
+    TraversalFinished,
     /// Key press.
     Key(KeyEvent),
     /// Mouse click/scroll.
@@ -60,6 +62,10 @@ impl EventHandler {
             handlers: Vec::new(),
             should_cancel: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    pub fn get_event_sender(&self) -> mpsc::Sender<Event> {
+        self.sender.clone()
     }
 
     /// Starts the processing of events.
