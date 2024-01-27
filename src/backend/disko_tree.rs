@@ -1,55 +1,195 @@
 use std::{
     fmt,
     path::{Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, RwLock,
+    },
+    thread,
 };
 
+use anyhow::{Context, Result};
+use byte_unit::Byte;
 use jwalk::{DirEntry, Parallelism::RayonNewPool, WalkDirGeneric};
 
 use super::model::{
-    entry_node::EntryNode,
+    entry_node::{EntryNode, EntryNodeView},
     tree_walk_state::{CustomJWalkClientState, TreeWalkAncestor, TreeWalkState},
 };
 
 use ref_tree::{Node, Tree};
 
+#[derive(Default)]
 pub struct DiskoTree {
     tree: Arc<RwLock<Tree<EntryNode>>>,
-    root_path: PathBuf,
+    current_directory: Option<Arc<RwLock<Node<EntryNode>>>>,
+    traversal_handler: Option<thread::JoinHandle<()>>,
+    root: PathBuf,
+    is_traversing: Arc<AtomicBool>,
+    stop_traversing: Arc<AtomicBool>,
 }
 
 // Public interface
 
 impl DiskoTree {
-    pub(crate) fn new(starting_at: PathBuf) -> Self {
+    pub(crate) fn new(root: PathBuf) -> Self {
         Self {
             tree: Arc::new(RwLock::new(Tree::new())),
-            root_path: starting_at,
+            current_directory: None,
+            traversal_handler: None,
+            root,
+            is_traversing: Arc::new(AtomicBool::new(false)),
+            stop_traversing: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    /// Poll the state of evaluation by taking look (.read()) at the
-    /// tree building.
-    pub(crate) fn get_tree(&self) -> Arc<RwLock<Tree<EntryNode>>> {
-        self.tree.clone()
+    fn get_children(node: &std::sync::RwLockReadGuard<'_, Node<EntryNode>>) -> Vec<EntryNodeView> {
+        let mut children: Vec<EntryNodeView> = node
+            .get_children()
+            .iter()
+            .enumerate()
+            .map(|(index, child)| {
+                let child = child
+                    .read()
+                    .expect("Failed to read child while getting children");
+                EntryNodeView {
+                    name: child.data.name.clone(),
+                    path: child.data.path.clone(),
+                    size: Byte::from_u64(child.data.size),
+                    descendants_count: child.data.descendants_count,
+                    entry_type: child.data.entry_type,
+                    index_to_original_node: Some(index),
+                }
+            })
+            .collect();
+        children.sort_by(|a, b| b.size.cmp(&a.size));
+        children
     }
 
-    /// Run this on separate thread to not block the ui thread. Once
-    /// the computation ends, the file system from given root path is
-    /// evaluated and sizes calcuated.
-    pub(crate) fn traverse(&mut self) {
-        let walk_dir = WalkDirGeneric::<(TreeWalkState, ())>::new(self.root_path.clone())
+    /// Switch the current working directory to its parent.
+    /// Returns an error if the current directory is not set, i.e., the
+    /// traversal has not yet computed a root or if the current directory
+    /// has no parent.
+    pub(crate) fn go_to_parent_directory(&mut self) -> Result<()> {
+        let current_directory_arc = self
+            .current_directory
+            .take()
+            .context("Current directory not set")?;
+        let current_directory = current_directory_arc
+            .read()
+            .expect("Failed to read current directory");
+        let parent = current_directory
+            .get_parent()
+            .expect("Failed to get parent of current directory")
+            .upgrade()
+            .expect("Failed to upgrade weak reference to parent of current directory");
+        self.current_directory = Some(parent);
+        Ok(())
+    }
+
+    /// Get the view of the current directory and its children.
+    /// Returns `None` if the current directory is not set, i.e., the traversal
+    /// has not yet computed a root.
+    pub(crate) fn get_current_dir_view(&mut self) -> Option<(EntryNodeView, Vec<EntryNodeView>)> {
+        if self.current_directory.is_none() {
+            self.current_directory = self
+                .tree
+                .read()
+                .expect("Failed to read the underlying tree in diskotree")
+                .get_root();
+        }
+        let current_directory = self
+            .current_directory
+            .as_ref()?
+            .read()
+            .expect("Failed to read current directory");
+        let children = Self::get_children(&current_directory);
+        let current_directory_view = EntryNodeView {
+            name: current_directory.data.name.clone(),
+            path: current_directory.data.path.clone(),
+            size: Byte::from_u64(current_directory.data.size),
+            descendants_count: current_directory.data.descendants_count,
+            entry_type: current_directory.data.entry_type,
+            index_to_original_node: None,
+        };
+        Some((current_directory_view, children))
+    }
+
+    /// Get the view of the subdirectory of the current directory at the given
+    /// index.
+    /// Returns `None` if the current directory is not set, i.e., the traversal
+    /// has not yet computed a root, or if the index is out of bounds.
+    pub(crate) fn get_subdir_of_current_dir_view(
+        &self,
+        index: usize,
+    ) -> Option<Vec<EntryNodeView>> {
+        let subdir_arc = {
+            let current_directory = self
+                .current_directory
+                .as_ref()?
+                .read()
+                .expect("Failed to read current directory");
+            current_directory.get_child(index)?
+        };
+        let subdir = subdir_arc
+            .read()
+            .expect("Failed to read subdir while getting subdir view");
+
+        Some(Self::get_children(&subdir))
+    }
+
+    fn jwalk_walk_dir(
+        root: PathBuf,
+        tree: Arc<RwLock<Tree<EntryNode>>>,
+    ) -> WalkDirGeneric<(TreeWalkState, ())> {
+        WalkDirGeneric::<(TreeWalkState, ())>::new(root)
             .sort(true)
             .parallelism(RayonNewPool(10))
             .skip_hidden(false)
-            .root_read_dir_state(TreeWalkState::new(self.tree.clone()))
+            .root_read_dir_state(TreeWalkState::new(tree))
             .process_read_dir(|depth, dir_path, state, children| {
                 Self::process_dir(depth, dir_path, state, children);
-            });
+            })
+    }
 
-        let mut iter = walk_dir.into_iter();
+    /// Runs on the traversal on a separate thread. Once the computation
+    /// ends, the file system from given root path is evauluated and sizes
+    /// are calculated.
+    /// This method is non-blocking.
+    pub(crate) fn background_traverse(&mut self) {
+        let tree = self.tree.clone();
+        let is_traversing = self.is_traversing.clone();
+        let stop_traversing = self.stop_traversing.clone();
+        let root = self.root.clone();
+        self.traversal_handler = Some(thread::spawn(move || {
+            is_traversing.store(true, Ordering::Release);
 
-        while iter.next().is_some() {}
+            for _ in Self::jwalk_walk_dir(root, tree) {
+                if stop_traversing.load(Ordering::Relaxed) {
+                    break;
+                }
+            }
+
+            is_traversing.store(false, Ordering::Release);
+        }));
+    }
+
+    /// Check if the traversal thread is still running.
+    pub(crate) fn is_traversing(&self) -> bool {
+        self.is_traversing.load(Ordering::Acquire)
+    }
+
+    /// Stops the background traversal.
+    /// Blocks the calling thread until the traversal thread completely stops.
+    pub(crate) fn stop_traversing(&mut self) {
+        self.stop_traversing.store(true, Ordering::Relaxed);
+        if let Some(handler) = self.traversal_handler.take() {
+            handler.join().expect("Failed to join traversal thread.");
+        }
+    }
+
+    pub(crate) fn traverse(&mut self) {
+        for _ in Self::jwalk_walk_dir(self.root.clone(), self.tree.clone()) {}
     }
 }
 

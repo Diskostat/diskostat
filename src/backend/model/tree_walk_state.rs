@@ -85,7 +85,10 @@ impl Default for TreeWalkState {
 
 impl Debug for TreeWalkState {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TreeWalkState").finish()
+        match self.ancestor {
+            TreeWalkAncestor::Tree(_) => write!(f, "TreeWalkState {{ ancestor: Tree }}"),
+            TreeWalkAncestor::Parent(_) => write!(f, "TreeWalkState {{ ancestor: Parent }}"),
+        }
     }
 }
 

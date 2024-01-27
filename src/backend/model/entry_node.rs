@@ -1,7 +1,7 @@
 use std::{
     fmt::Display,
     fs::{self, Metadata},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use super::{
@@ -9,14 +9,39 @@ use super::{
     tree_walk_state::CustomJWalkClientState,
 };
 
+use byte_unit::Byte;
+
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub(crate) struct EntryNode {
     pub(crate) name: String,
+    pub(crate) path: PathBuf,
     pub(crate) size: u64,
     pub(crate) descendants_count: usize,
     pub(crate) entry_type: EntryType,
     pub(crate) metadata: fs::Metadata,
+}
+
+pub struct EntryNodeView {
+    pub name: String,
+    pub path: PathBuf,
+    pub size: Byte,
+    pub descendants_count: usize,
+    pub entry_type: EntryType,
+    pub index_to_original_node: Option<usize>,
+}
+
+impl EntryNodeView {
+    pub fn new_dir(path: PathBuf) -> Self {
+        Self {
+            name: extract_file_name(&path),
+            path,
+            size: Byte::from_u64(0),
+            descendants_count: 0,
+            entry_type: EntryType::Directory,
+            index_to_original_node: None,
+        }
+    }
 }
 
 // Convenience helpers
@@ -31,28 +56,27 @@ impl EntryNode {
             return None;
         }
 
-        let name = path
-            .file_name()
-            // `std::path::Path` returns None, if the path refers to
-            // the parent directory (..). Therefore, we create that
-            // manually.
-            //
-            // TODO: Check if .. is / and corrent the name if so.
-            .unwrap_or("..".as_ref())
-            // See docs for usage.
-            .to_string_lossy()
-            .to_string();
+        let name = extract_file_name(path);
 
         Some(Self {
             name,
             // TODO: Adjust! Get the real size of directory on disk
             // and/or its real size.
+            path: path.to_path_buf(),
             size: 0,
             descendants_count: 0,
             entry_type: EntryType::Directory,
             metadata,
         })
     }
+}
+
+pub fn extract_file_name(path: &Path) -> String {
+    if let Some(file_name) = path.file_name() {
+        return file_name.to_string_lossy().to_string();
+    }
+    // If the path terminates in `..` then just set the path as the name.
+    path.to_string_lossy().to_string()
 }
 
 // Traits implementations
@@ -70,9 +94,7 @@ impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
         let Some(metadata) = Self::extract_metadata(value) else {
             return Err("Error getting metadata from DirEntry");
         };
-        let Some(name) = Self::extract_name(value) else {
-            return Err("Error getting name from DirEntry");
-        };
+        let name = value.file_name().to_string_lossy().to_string();
         let entry_type = Self::extract_entry_type(value);
         // TODO: Adjust! Get the real size of file on disk and or it's
         // real size.
@@ -80,6 +102,7 @@ impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
 
         Ok(EntryNode {
             name,
+            path: value.path().clone(),
             size,
             descendants_count: 0,
             entry_type,
@@ -91,21 +114,6 @@ impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
 // Helper functions for TryFrom
 
 impl EntryNode {
-    fn extract_name(dir_entry: &jwalk::DirEntry<CustomJWalkClientState>) -> Option<String> {
-        match dir_entry.file_name.clone().into_string() {
-            Ok(name) => Some(name),
-            Err(os_string) => {
-                dbg!(
-                    "DirEntry has no name!\nOsString:",
-                    os_string,
-                    "\nDirEntry:",
-                    dir_entry
-                );
-                None
-            }
-        }
-    }
-
     fn extract_entry_type(dir_entry: &jwalk::DirEntry<CustomJWalkClientState>) -> EntryType {
         if dir_entry.file_type.is_dir() {
             return EntryType::Directory;
