@@ -190,7 +190,7 @@ impl DiskoTree {
     /// ends, the file system from given root path is evauluated and sizes
     /// are calculated.
     /// This method is non-blocking.
-    pub(crate) fn background_traverse(&mut self, sender: mpsc::Sender<Event>) {
+    pub(crate) fn start_background_traversal(&mut self, sender: mpsc::Sender<Event>) {
         let tree = self.tree.clone();
         let is_traversing = self.is_traversing.clone();
         let stop_traversing = self.stop_traversing.clone();
@@ -218,7 +218,7 @@ impl DiskoTree {
 
     /// Stops the background traversal.
     /// Blocks the calling thread until the traversal thread completely stops.
-    pub(crate) fn stop_traversing(&mut self) {
+    pub(crate) fn stop_background_traversal(&mut self) {
         self.stop_traversing.store(true, Ordering::Relaxed);
         if let Some(handler) = self.traversal_handler.take() {
             handler.join().expect("Failed to join traversal thread.");

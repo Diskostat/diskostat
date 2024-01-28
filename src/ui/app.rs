@@ -98,7 +98,7 @@ impl App {
         Ok(Self { state, tui, tree })
     }
 
-    fn get_preview_file(&self, entry: &EntryNodeView) -> Preview {
+    fn get_file_preview(&self, entry: &EntryNodeView) -> Preview {
         let Ok(file) = File::open(&entry.path) else {
             return Preview::Empty;
         };
@@ -112,7 +112,7 @@ impl App {
         Preview::Empty
     }
 
-    fn get_preview_directory(&self, entry: &EntryNodeView) -> Preview {
+    fn get_directory_preview(&self, entry: &EntryNodeView) -> Preview {
         let subdir_entries = self
             .tree
             .get_subdir_of_current_dir_view(
@@ -133,7 +133,7 @@ impl App {
     pub fn run(&mut self) -> Result<()> {
         self.tui.enter()?;
         let sender = self.tui.events.get_event_sender();
-        self.tree.background_traverse(sender);
+        self.tree.start_background_traversal(sender);
 
         // Start the main loop.
         while !self.state.should_quit {
@@ -150,7 +150,7 @@ impl App {
             self.update(action)?;
         }
 
-        self.tree.stop_traversing();
+        self.tree.stop_background_traversal();
 
         // Exit the user interface.
         self.tui.exit()?;
@@ -208,8 +208,8 @@ impl App {
             return;
         };
         self.state.preview = match focused.entry_type {
-            EntryType::File(_) => self.get_preview_file(focused),
-            EntryType::Directory => self.get_preview_directory(focused),
+            EntryType::File(_) => self.get_file_preview(focused),
+            EntryType::Directory => self.get_directory_preview(focused),
         };
     }
 
