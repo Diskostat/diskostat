@@ -5,6 +5,7 @@ use std::{
 };
 
 use super::{
+    entry_size::EntrySize,
     entry_type::{EntryType, FileType},
     tree_walk_state::CustomJWalkClientState,
 };
@@ -14,7 +15,7 @@ use super::{
 pub(crate) struct EntryNode {
     pub(crate) name: String,
     pub(crate) path: PathBuf,
-    pub(crate) size: u64,
+    pub(crate) sizes: EntrySize,
     pub(crate) descendants_count: usize,
     pub(crate) entry_type: EntryType,
     pub(crate) metadata: fs::Metadata,
@@ -23,7 +24,7 @@ pub(crate) struct EntryNode {
 pub struct EntryNodeView {
     pub name: String,
     pub path: PathBuf,
-    pub size: u64,
+    pub sizes: EntrySize,
     pub descendants_count: usize,
     pub entry_type: EntryType,
     pub index_to_original_node: Option<usize>,
@@ -34,7 +35,7 @@ impl EntryNodeView {
         Self {
             name: extract_file_name(&path),
             path,
-            size: 0,
+            sizes: EntrySize::default(),
             descendants_count: 0,
             entry_type: EntryType::Directory,
             index_to_original_node: None,
@@ -58,14 +59,19 @@ impl EntryNode {
 
         Some(Self {
             name,
-            // TODO: Adjust! Get the real size of directory on disk
-            // and/or its real size.
             path: path.to_path_buf(),
-            size: 0,
+            sizes: EntrySize::new(path, &metadata),
             descendants_count: 0,
             entry_type: EntryType::Directory,
             metadata,
         })
+    }
+
+    pub(crate) fn delete_entry(&self) -> std::io::Result<()> {
+        match self.entry_type {
+            EntryType::Directory => std::fs::remove_dir_all(self.path.clone()),
+            EntryType::File(_) => std::fs::remove_file(self.path.clone()),
+        }
     }
 }
 
@@ -81,7 +87,7 @@ pub fn extract_file_name(path: &Path) -> String {
 
 impl Display for EntryNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:<20} • {}", self.name, self.size)
+        write!(f, "{:<20} • {}", self.name, self.sizes.apparent_size)
     }
 }
 
@@ -94,14 +100,11 @@ impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
         };
         let name = value.file_name().to_string_lossy().to_string();
         let entry_type = Self::extract_entry_type(value);
-        // TODO: Adjust! Get the real size of file on disk and or it's
-        // real size.
-        let size = metadata.len();
 
         Ok(EntryNode {
             name,
             path: value.path().clone(),
-            size,
+            sizes: EntrySize::new(value.path().as_path(), &metadata),
             descendants_count: 0,
             entry_type,
             metadata,

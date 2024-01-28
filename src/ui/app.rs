@@ -282,6 +282,11 @@ impl App {
                     self.state.focus = AppFocus::MainScreen;
                 }
                 Action::ShowConfirmDeletePopup => {
+                    if !self.state.traversal_finished {
+                        self.set_message("Cannot delete while traversing".to_string());
+                        return Ok(());
+                    }
+
                     self.state.focus = AppFocus::ConfirmDeletePopup(ConfirmDeletePopup::new(true));
                 }
                 Action::BufferInput(input) => {
@@ -318,13 +323,13 @@ impl App {
                 Action::DeletePopupSelect => {
                     if let AppFocus::ConfirmDeletePopup(popup) = &mut self.state.focus {
                         if popup.confirmed() {
-                            // TODO: Implement deletion.
+                            self.delete_selected();
                         }
                         self.state.focus = AppFocus::MainScreen;
                     }
                 }
                 Action::ConfirmDelete => {
-                    // TODO: Implement deletion.
+                    self.delete_selected();
                     self.state.focus = AppFocus::MainScreen;
                 }
                 Action::ToggleSelection => {
@@ -362,5 +367,36 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    pub fn delete_selected(&mut self) {
+        let mut indeces: Vec<usize> = self
+            .state
+            .main_table
+            .selected
+            .iter()
+            .map(|i| {
+                self.state.main_table.items[*i]
+                    .index_to_original_node
+                    .expect("Node was not given an index")
+            })
+            .collect();
+
+        // If no items where selected, delete the focused one
+        if indeces.is_empty() {
+            match self.state.main_table.focused() {
+                Some(i) => {
+                    indeces = vec![i
+                        .index_to_original_node
+                        .expect("Node was not given an index")]
+                }
+                _ => return,
+            }
+        }
+
+        if self.tree.delete_entries(indeces).is_err() {
+            self.set_message("Error deleting entry".to_string());
+        }
+        self.update_view();
     }
 }

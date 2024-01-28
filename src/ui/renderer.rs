@@ -219,13 +219,13 @@ impl Renderer {
                 self.get_selection_cell(is_selected),
                 self.get_name_cell(data.name.clone(), is_focused, app_focus),
                 self.get_size_progress_cell(
-                    data.size,
-                    parent.size,
+                    data.sizes.apparent_size,
+                    parent.sizes.apparent_size,
                     show_bar,
                     is_focused,
                     app_focus,
                 ),
-                self.get_size_cell(Byte::from_u64(data.size), is_focused, app_focus),
+                self.get_size_cell(data.sizes.apparent_size, is_focused, app_focus),
             ])
             .style(self.get_row_style(is_focused, app_focus))
         });
@@ -309,13 +309,14 @@ impl Renderer {
         }
     }
 
-    fn get_size_cell<'a>(&self, size: Byte, is_focused: bool, app_focus: &AppFocus) -> Cell<'a> {
+    fn get_size_cell<'a>(&self, size: u64, is_focused: bool, app_focus: &AppFocus) -> Cell<'a> {
         let fg = match app_focus {
             AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => self.colors.primary_bg,
             _ => self.colors.fg,
         };
 
-        let appropriate_size = size.get_appropriate_unit(byte_unit::UnitType::Decimal);
+        let appropriate_size =
+            Byte::from_u64(size).get_appropriate_unit(byte_unit::UnitType::Decimal);
 
         Cell::from(Line::from(vec![Span::from(format!(
             "{:>10.2}",

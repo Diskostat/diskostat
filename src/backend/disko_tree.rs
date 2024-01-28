@@ -19,10 +19,16 @@ use crate::ui::event_handling::DiskoEvent;
 
 use super::model::{
     entry_node::{EntryNode, EntryNodeView},
+    entry_size::EntrySize,
     tree_walk_state::{CustomJWalkClientState, TreeWalkAncestor, TreeWalkState},
 };
 
 use ref_tree::{Node, Tree};
+
+pub enum BackpropOperation {
+    Add,
+    Subtract,
+}
 
 #[derive(Default)]
 pub struct DiskoTree {
@@ -66,14 +72,14 @@ impl DiskoTree {
                 EntryNodeView {
                     name: child.data.name.clone(),
                     path: child.data.path.clone(),
-                    size: child.data.size,
+                    sizes: child.data.sizes,
                     descendants_count: child.data.descendants_count,
                     entry_type: child.data.entry_type,
                     index_to_original_node: Some(index),
                 }
             })
             .collect();
-        children.sort_by(|a, b| b.size.cmp(&a.size));
+        children.sort_by(|a, b| b.sizes.apparent_size.cmp(&a.sizes.apparent_size));
         children
     }
 
@@ -136,7 +142,7 @@ impl DiskoTree {
         let current_directory_view = EntryNodeView {
             name: current_directory.data.name.clone(),
             path: current_directory.data.path.clone(),
-            size: current_directory.data.size,
+            sizes: current_directory.data.sizes,
             descendants_count: current_directory.data.descendants_count,
             entry_type: current_directory.data.entry_type,
             index_to_original_node: None,
@@ -230,6 +236,60 @@ impl DiskoTree {
         {
         }
     }
+
+    pub(crate) fn delete_entries(&self, mut indices: Vec<usize>) -> Result<()> {
+        let current_directory_arc = self
+            .current_directory
+            .clone()
+            .context("Current directory not set")?;
+
+        let children = {
+            let current_directory = current_directory_arc
+                .read()
+                .expect("Failed to write current directory");
+
+            current_directory.get_children()
+        };
+
+        let mut deleted_size = EntrySize::default();
+
+        // When deleting children, we modify the size of the vector containing children,
+        // hence indices may no longer correspond to desired children. Therefore we sort them in descending order,
+        // so children are deleted from end and hence we omit the neccessity to adjust indices upon child deletion.
+        indices.sort_unstable();
+        indices.reverse();
+
+        for child_index in indices {
+            let child = children
+                .get(child_index)
+                .context("Provided index is out of bounds.")?;
+            let child_data = {
+                let child = child.clone();
+                let read_child = child
+                    .read()
+                    .expect("Failed to read child while deleting children.");
+
+                read_child.data.clone()
+            };
+
+            child_data.delete_entry()?;
+
+            deleted_size += child_data.sizes;
+            self.tree
+                .clone()
+                .write()
+                .expect("Failed to write to tree while deleting children.")
+                .remove_subtree(child)
+                .expect("Failed to delete child.");
+        }
+
+        Self::backprop_size(
+            &current_directory_arc,
+            deleted_size,
+            BackpropOperation::Subtract,
+        );
+        Ok(())
+    }
 }
 
 // Convenience/helpers
@@ -250,7 +310,8 @@ impl DiskoTree {
             return;
         };
 
-        let mut size = dir_node.metadata.len();
+        // Count size of file children.
+        let mut size = EntrySize::default();
 
         // Create node on tree.
         let node = Self::attach_to_tree(state, dir_node);
@@ -269,14 +330,14 @@ impl DiskoTree {
             // Finaly process the file children.
             .for_each(|mut child_node| {
                 if state.file_has_been_seen(&child_node.metadata) {
-                    child_node.size = 0;
+                    child_node.sizes = EntrySize::default();
                 }
-                size += child_node.size;
+                size += child_node.sizes;
                 Tree::attach_child(&node, child_node);
             });
 
         // Propagate size up including this node to root (including).
-        Self::write_size_upwards_including(&node, size);
+        Self::backprop_size(&node, size, BackpropOperation::Add);
 
         // Move (i.e. not .clone()) reference to this node as a parent
         // for the next iteration.
@@ -296,14 +357,23 @@ impl DiskoTree {
         }
     }
 
-    fn write_size_upwards_including(node: &Arc<RwLock<Node<EntryNode>>>, size: u64) {
+    fn backprop_size(
+        node: &Arc<RwLock<Node<EntryNode>>>,
+        size: EntrySize,
+        operation: BackpropOperation,
+    ) {
         let iter = Tree::iter_to_root_from_node(node.clone());
-        for node in iter {
-            node.write()
-                .expect("Failed to write while propagating size up")
-                .data
-                .size += size;
-        }
+
+        iter.into_iter().for_each(|node| {
+            let mut node = node
+                .write()
+                .expect("Failed to write while backpropagating size");
+
+            match operation {
+                BackpropOperation::Add => node.data.sizes += size,
+                BackpropOperation::Subtract => node.data.sizes -= size,
+            };
+        });
     }
 }
 
