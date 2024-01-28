@@ -36,10 +36,10 @@ pub struct EventHandler {
     sender: mpsc::Sender<DiskoEvent>,
     /// Event receiver channel.
     receiver: mpsc::Receiver<DiskoEvent>,
-    /// The rate at which [`Event::Tick`] events should be sent.
-    tick_rate: f64,
-    /// The rate at which [`Event::Render`] events should be sent.
-    render_rate: f64,
+    /// How many [`Event::Tick`] events should be sent per second.
+    tick_rate: u64,
+    /// How many [`Event::Render`] events should be sent per second.
+    render_rate: u64,
     /// Event handler threads.
     handlers: Vec<thread::JoinHandle<()>>,
     /// Whether the event handler should cancel.
@@ -49,8 +49,8 @@ pub struct EventHandler {
 impl EventHandler {
     /// Constructs a new instance of [`EventHandler`].
     pub fn new(
-        tick_rate: f64,
-        render_rate: f64,
+        tick_rate: u64,
+        render_rate: u64,
         sender: mpsc::Sender<DiskoEvent>,
         receiver: mpsc::Receiver<DiskoEvent>,
     ) -> Self {
@@ -74,7 +74,7 @@ impl EventHandler {
             .send(DiskoEvent::Init)
             .expect("Failed to send init event");
 
-        let tick_delay = Duration::try_from_secs_f64(1.0 / self.tick_rate)?;
+        let tick_delay = Duration::try_from_secs_f64(1.0 / self.tick_rate as f64)?;
 
         let tick_sender = self.sender.clone();
         let cancel_tick_handler = self.should_cancel.clone();
@@ -84,7 +84,7 @@ impl EventHandler {
 
         let render_sender = self.sender.clone();
         let cancel_render_handler = self.should_cancel.clone();
-        let render_delay = Duration::try_from_secs_f64(1.0 / self.render_rate)?;
+        let render_delay = Duration::try_from_secs_f64(1.0 / self.render_rate as f64)?;
         let render_handler = thread::spawn(move || {
             Self::handle_render(render_delay, render_sender, cancel_render_handler)
         });

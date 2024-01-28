@@ -12,8 +12,7 @@ use clap::Parser;
 
 use crate::backend::disko_tree::DiskoTree;
 
-const DEFAULT_TICK_RATE: f64 = 4.0;
-const DEFAULT_RENDER_RATE: f64 = 30.0;
+const DEFAULT_RENDER_RATE: u64 = 30;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -27,8 +26,12 @@ struct Arguments {
     summary: bool,
 
     /// The number of threads to use for the file system traversal.
-    #[arg(short, long, default_value_t = 4)]
+    #[arg(short = 'n', long, default_value_t = 4)]
     threads: usize,
+
+    /// How many times the application ticks per second.
+    #[arg(short, long, default_value_t = 4)]
+    tick_rate: u64,
 }
 
 fn main() -> Result<()> {
@@ -53,7 +56,7 @@ fn main() -> Result<()> {
     }
 
     // Create and start the application.
-    let mut app = App::new(DEFAULT_TICK_RATE, DEFAULT_RENDER_RATE, tree)?;
+    let mut app = App::new(arguments.tick_rate, DEFAULT_RENDER_RATE, tree)?;
     app.run()?;
     Ok(())
 }

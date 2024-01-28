@@ -79,12 +79,12 @@ pub struct App {
     tui: Tui,
     disko_events: DiskoEventHandler,
     tree: DiskoTree,
-    tick_rate: f64,
+    tick_rate: u64,
 }
 
 impl App {
     /// Constructs a new instance of [`App`].
-    pub fn new(tick_rate: f64, render_rate: f64, tree: DiskoTree) -> Result<Self> {
+    pub fn new(tick_rate: u64, render_rate: u64, tree: DiskoTree) -> Result<Self> {
         // Initialize the terminal user interface.
         let backend = CrosstermBackend::new(std::io::stdout());
         let terminal = Terminal::new(backend)?;
@@ -222,7 +222,7 @@ impl App {
     /// Handles the tick event of the terminal.
     pub fn tick(&mut self) {
         if !matches!(self.state.focus, AppFocus::BufferingInput)
-            && self.state.clear_message_ticks >= self.tick_rate as u64 * CLEAR_MESSAGE_AFTER_SECONDS
+            && self.state.clear_message_ticks >= self.tick_rate * CLEAR_MESSAGE_AFTER_SECONDS
         {
             self.clear_message();
         } else {
