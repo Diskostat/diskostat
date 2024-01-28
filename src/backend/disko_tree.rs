@@ -171,7 +171,7 @@ impl DiskoTree {
             })
     }
 
-    /// Runs on the traversal on a separate thread. Once the computation
+    /// Starts the traversal on a separate thread. Once the computation
     /// ends, the file system from given root path is evauluated and sizes
     /// are calculated.
     /// This method is non-blocking.
