@@ -7,7 +7,7 @@ use super::{
     event_handling::DiskoEvent,
 };
 
-const SINGLE_KEY_COMMANDS_MAIN_SCREEN_COUNT: usize = 14;
+const SINGLE_KEY_COMMANDS_MAIN_SCREEN_COUNT: usize = 15;
 const SINGLE_KEY_COMMANDS_CONFIRM_DELETE_POPUP_COUNT: usize = 9;
 const MULTI_KEY_COMMANDS_COUNT: usize = 1;
 
@@ -26,6 +26,7 @@ const DEFAULT_SINGLE_KEY_COMMANDS_MAIN_SCREEN: [(KeyCode, Action);
     (KeyCode::Char('l'), Action::EnterFocusedDirectory),
     (KeyCode::Left, Action::EnterParentDirectory),
     (KeyCode::Char('h'), Action::EnterParentDirectory),
+    (KeyCode::Char('a'), Action::SwitchEntryDisplaySize),
     (KeyCode::Char('b'), Action::SwitchProgress),
 ];
 

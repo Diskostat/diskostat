@@ -60,7 +60,10 @@ impl DiskoTree {
         self.root.clone()
     }
 
-    fn get_children(node: &std::sync::RwLockReadGuard<'_, Node<EntryNode>>) -> Vec<EntryNodeView> {
+    fn get_children(
+        node: &std::sync::RwLockReadGuard<'_, Node<EntryNode>>,
+        sort_by_disk_size: bool,
+    ) -> Vec<EntryNodeView> {
         let mut children: Vec<EntryNodeView> = node
             .get_children()
             .iter()
@@ -74,7 +77,15 @@ impl DiskoTree {
                 entry
             })
             .collect();
-        children.sort_by(|a, b| b.sizes.apparent_size.cmp(&a.sizes.apparent_size));
+
+        children.sort_by(|a, b| {
+            if sort_by_disk_size {
+                b.sizes.disk_size.cmp(&a.sizes.disk_size)
+            } else {
+                b.sizes.apparent_size.cmp(&a.sizes.apparent_size)
+            }
+        });
+
         children
     }
 
@@ -120,7 +131,10 @@ impl DiskoTree {
     /// Get the view of the current directory and its children.
     /// Returns `None` if the current directory is not set, i.e., the traversal
     /// has not yet computed a root.
-    pub(crate) fn get_current_dir_view(&mut self) -> Option<(EntryNodeView, Vec<EntryNodeView>)> {
+    pub(crate) fn get_current_dir_view(
+        &mut self,
+        sort_by_disk_size: bool,
+    ) -> Option<(EntryNodeView, Vec<EntryNodeView>)> {
         if self.current_directory.is_none() {
             self.current_directory = self
                 .tree
@@ -133,7 +147,7 @@ impl DiskoTree {
             .as_ref()?
             .read()
             .expect("Failed to read current directory");
-        let children = Self::get_children(&current_directory);
+        let children = Self::get_children(&current_directory, sort_by_disk_size);
         let current_directory_view = EntryNodeView::from_entry_node(&current_directory.data);
         Some((current_directory_view, children))
     }
@@ -145,6 +159,7 @@ impl DiskoTree {
     pub(crate) fn get_subdir_of_current_dir_view(
         &self,
         index: usize,
+        sort_by_disk_size: bool,
     ) -> Option<Vec<EntryNodeView>> {
         let subdir_arc = {
             let current_directory = self
@@ -158,7 +173,7 @@ impl DiskoTree {
             .read()
             .expect("Failed to read subdir while getting subdir view");
 
-        Some(Self::get_children(&subdir))
+        Some(Self::get_children(&subdir, sort_by_disk_size))
     }
 
     fn jwalk_walk_dir(

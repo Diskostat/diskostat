@@ -43,6 +43,7 @@ pub enum Action {
     DeletePopupSelect,
     ConfirmDelete,
     ToggleSelection,
+    SwitchEntryDisplaySize,
     SwitchProgress,
 }
 
@@ -75,6 +76,7 @@ pub struct AppState {
     pub current_directory: EntryNodeView,
     pub traversal_finished: bool,
     pub show_bar: bool,
+    pub show_disk_size: bool,
     pub message: String,
     pub clear_message_ticks: u64,
     pub indicator: indicator::Indicator,
@@ -110,6 +112,7 @@ impl App {
             current_directory: EntryNodeView::new_dir(tree.root_path()),
             traversal_finished: false,
             show_bar: false,
+            show_disk_size: false,
             message: String::new(),
             clear_message_ticks: 0,
             indicator: indicator::Indicator::new(indicator::ASCII, "Traversing".to_string()),
@@ -147,6 +150,7 @@ impl App {
                 entry
                     .index_to_original_node
                     .expect("should never get the root directory as a child"),
+                self.state.show_disk_size,
             )
             .expect("child directory at the given index should exist");
 
@@ -188,7 +192,9 @@ impl App {
     }
 
     pub fn update_view_on_switch_dir(&mut self) {
-        let Some((current_directory, entries)) = self.tree.get_current_dir_view() else {
+        let Some((current_directory, entries)) =
+            self.tree.get_current_dir_view(self.state.show_disk_size)
+        else {
             return;
         };
         self.state.current_directory = current_directory;
@@ -203,7 +209,9 @@ impl App {
     }
 
     pub fn update_view(&mut self) {
-        let Some((current_directory, entries)) = self.tree.get_current_dir_view() else {
+        let Some((current_directory, entries)) =
+            self.tree.get_current_dir_view(self.state.show_disk_size)
+        else {
             return;
         };
         self.state.current_directory = current_directory;
@@ -419,6 +427,10 @@ impl App {
                             table.clear_selected();
                         }
                     }
+                }
+                Action::SwitchEntryDisplaySize => {
+                    self.state.show_disk_size = !self.state.show_disk_size;
+                    self.update_view();
                 }
                 Action::SwitchProgress => self.state.show_bar = !self.state.show_bar,
             }

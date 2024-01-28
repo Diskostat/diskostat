@@ -8,6 +8,7 @@ use ratatui::{
 
 use crate::backend::model::{
     entry_node::{EntryNodeView, Mode},
+    entry_size::EntrySize,
     entry_type::EntryType,
 };
 
@@ -174,7 +175,7 @@ impl Renderer {
             Paragraph::new(state.message.clone()).style(Style::default().fg(self.colors.fg));
         frame.render_widget(message, left_half_chunks[2]);
 
-        let commands = Paragraph::new("Commands: q(uit), s(elect), b(ar)")
+        let commands = Paragraph::new("Commands: q(uit), s(elect), b(ar), d(elete), a(pparent)")
             .style(Style::default().fg(self.colors.fg));
         frame.render_widget(commands, chunks[1]);
 
@@ -234,6 +235,7 @@ impl Renderer {
                 table,
                 &state.focus,
                 state.show_bar,
+                state.show_disk_size,
             ),
             Main::EmptyDirectory => self.render_empty_directory(frame, area, block),
         }
@@ -260,6 +262,7 @@ impl Renderer {
                     preview_table,
                     &state.focus,
                     state.show_bar,
+                    state.show_disk_size,
                 );
             }
             Preview::Text(text) => self.render_preview_paragraph(frame, area, block, text),
@@ -278,6 +281,7 @@ impl Renderer {
         table_state: &mut StatefulTable<EntryNodeView>,
         app_focus: &AppFocus,
         show_bar: bool,
+        show_disk_size: bool,
     ) {
         let rows = table_state.items.iter().enumerate().map(|(index, data)| {
             let is_focused = table_state.is_focused(index);
@@ -287,13 +291,14 @@ impl Renderer {
                 self.get_selection_cell(is_selected),
                 self.get_name_cell(data.name.clone(), is_focused, app_focus),
                 self.get_size_progress_cell(
-                    data.sizes.apparent_size,
-                    parent.sizes.apparent_size,
+                    data.sizes,
+                    parent.sizes,
                     show_bar,
+                    show_disk_size,
                     is_focused,
                     app_focus,
                 ),
-                self.get_size_cell(data.sizes.apparent_size, is_focused, app_focus),
+                self.get_size_cell(data.sizes, show_disk_size, is_focused, app_focus),
             ])
             .style(self.get_row_style(is_focused, app_focus))
         });
@@ -342,12 +347,19 @@ impl Renderer {
 
     fn get_size_progress_cell<'a>(
         &self,
-        size: u64,
-        total_size: u64,
+        size: EntrySize,
+        total_size: EntrySize,
         show_bar: bool,
+        show_disk_size: bool,
         is_focused: bool,
         app_focus: &AppFocus,
     ) -> Cell<'a> {
+        let (size, total_size) = if show_disk_size {
+            (size.disk_size, total_size.disk_size)
+        } else {
+            (size.apparent_size, total_size.apparent_size)
+        };
+
         let rate = (size as f64 / total_size as f64).min(1.0);
         let filled = (rate * BAR_SIZE as f64) as usize;
         let empty = BAR_SIZE - filled;
@@ -377,10 +389,22 @@ impl Renderer {
         }
     }
 
-    fn get_size_cell<'a>(&self, size: u64, is_focused: bool, app_focus: &AppFocus) -> Cell<'a> {
+    fn get_size_cell<'a>(
+        &self,
+        size: EntrySize,
+        show_disk_size: bool,
+        is_focused: bool,
+        app_focus: &AppFocus,
+    ) -> Cell<'a> {
         let fg = match app_focus {
             AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => self.colors.primary_bg,
             _ => self.colors.fg,
+        };
+
+        let size = if show_disk_size {
+            size.disk_size
+        } else {
+            size.apparent_size
         };
 
         let appropriate_size =
@@ -403,8 +427,18 @@ impl Renderer {
         table_state: &mut StatefulTable<EntryNodeView>,
         app_focus: &AppFocus,
         show_bar: bool,
+        show_disk_size: bool,
     ) {
-        self.render_table(frame, area, block, parent, table_state, app_focus, show_bar);
+        self.render_table(
+            frame,
+            area,
+            block,
+            parent,
+            table_state,
+            app_focus,
+            show_bar,
+            show_disk_size,
+        );
     }
 
     fn render_empty_directory(&self, frame: &mut Frame, area: Rect, block: Block<'_>) {
