@@ -20,6 +20,7 @@ pub(crate) struct EntryNode {
     pub(crate) name: String,
     pub(crate) path: PathBuf,
     pub(crate) sizes: EntrySize,
+    pub(crate) dir_size: Option<EntrySize>,
     pub(crate) descendants_count: usize,
     pub(crate) entry_type: EntryType,
     pub(crate) metadata: fs::Metadata,
@@ -29,6 +30,7 @@ pub struct EntryNodeView {
     pub name: String,
     pub path: PathBuf,
     pub sizes: EntrySize,
+    pub dir_size: Option<EntrySize>,
     pub descendants_count: usize,
     pub entry_type: EntryType,
     pub mode: Mode,
@@ -48,6 +50,7 @@ impl EntryNodeView {
             name: extract_file_name(&path),
             path,
             sizes: EntrySize::default(),
+            dir_size: Some(EntrySize::default()),
             descendants_count: 0,
             entry_type: EntryType::Directory,
             // Unknown here for now, this needs to be updated later during the
@@ -63,6 +66,7 @@ impl EntryNodeView {
             name: entry_node.name.clone(),
             path: entry_node.path.clone(),
             sizes: entry_node.sizes,
+            dir_size: entry_node.dir_size,
             descendants_count: entry_node.descendants_count,
             entry_type: entry_node.entry_type,
             access_time: entry_node
@@ -95,6 +99,7 @@ impl EntryNode {
                 name,
                 path: path.to_path_buf(),
                 sizes: EntrySize::default(),
+                dir_size: Some(size),
                 descendants_count: 0,
                 entry_type: EntryType::Directory,
                 metadata,
@@ -156,10 +161,17 @@ impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
         let name = value.file_name().to_string_lossy().to_string();
         let entry_type = Self::extract_entry_type(value);
 
+        let size = EntrySize::new(value.path().as_path(), &metadata);
+        let dir_size = match entry_type {
+            EntryType::Directory => Some(size),
+            EntryType::File => None,
+        };
+
         Ok(EntryNode {
             name,
             path: value.path().clone(),
-            sizes: EntrySize::new(value.path().as_path(), &metadata),
+            sizes: size,
+            dir_size,
             descendants_count: 0,
             entry_type,
             metadata,

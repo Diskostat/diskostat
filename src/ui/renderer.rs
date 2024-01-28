@@ -416,12 +416,15 @@ impl Renderer {
             let is_focused = table_state.is_focused(index);
             let is_selected = table_state.is_selected(index);
 
+            let dir_size = parent.dir_size.unwrap_or_default();
+            let total_size = parent.sizes - dir_size;
+
             Row::new(vec![
                 self.get_selection_cell(is_selected),
                 self.get_name_cell(data.name.clone(), is_focused, app_focus),
                 self.get_size_progress_cell(
                     data.sizes,
-                    parent.sizes,
+                    total_size,
                     show_bar,
                     show_disk_size,
                     is_focused,
