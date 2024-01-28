@@ -254,7 +254,10 @@ impl App {
                     self.update_view();
                 }
                 Action::Resize(w, h) => self.resize(w, h)?,
-                Action::ShowMainScreen => self.state.focus = AppFocus::MainScreen,
+                Action::ShowMainScreen => {
+                    self.state.message = String::new();
+                    self.state.focus = AppFocus::MainScreen;
+                }
                 Action::ShowConfirmDeletePopup => {
                     self.state.focus = AppFocus::ConfirmDeletePopup(ConfirmDeletePopup::new(true));
                 }
@@ -267,19 +270,23 @@ impl App {
                     self.state.focus = AppFocus::MainScreen;
                 }
                 Action::FocusNextItem => {
+                    self.state.message = String::new();
                     self.state.main_table.focus_next();
                     self.update_focus();
                 }
                 Action::FocusPreviousItem => {
+                    self.state.message = String::new();
                     self.state.main_table.focus_previous();
                     self.update_focus();
                 }
                 Action::FocusFirstItem => {
+                    self.state.message = String::new();
                     self.state.main_table.focus_first();
                     self.state.focus = AppFocus::MainScreen;
                     self.update_focus();
                 }
                 Action::FocusLastItem => {
+                    self.state.message = String::new();
                     self.state.main_table.focus_last();
                     self.update_focus();
                 }
@@ -301,11 +308,13 @@ impl App {
                     self.state.focus = AppFocus::MainScreen;
                 }
                 Action::ToggleSelection => {
+                    self.state.message = String::new();
                     if let Some(focused) = self.state.main_table.focused_index() {
                         self.state.main_table.toggle_selection(focused);
                     };
                 }
                 Action::EnterFocusedDirectory => {
+                    self.state.message = String::new();
                     if let Some(focused) = self.state.main_table.focused() {
                         if !matches!(focused.entry_type, EntryType::Directory) {
                             return Ok(());
@@ -325,13 +334,17 @@ impl App {
                     }
                 }
                 Action::EnterParentDirectory => {
+                    self.state.message = String::new();
                     // Ignore if there is no parent anymore.
                     if self.tree.switch_to_parent_directory().is_ok() {
                         self.update_view_on_switch_dir();
                         self.state.main_table.clear_selected();
                     }
                 }
-                Action::SwitchProgress => self.state.show_bar = !self.state.show_bar,
+                Action::SwitchProgress => {
+                    self.state.message = String::new();
+                    self.state.show_bar = !self.state.show_bar;
+                }
             }
         }
         Ok(())

@@ -136,12 +136,22 @@ impl Renderer {
         frame: &mut Frame,
         area: Rect,
         block: Block<'_>,
-        _state: &mut AppState,
+        state: &mut AppState,
     ) {
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(area);
+
+        frame.render_widget(block, area);
+
+        let input =
+            Paragraph::new(state.message.clone()).style(Style::default().fg(self.colors.fg));
+        frame.render_widget(input, chunks[0]);
+
         let commands = Paragraph::new("Commands: q(uit), s(elect), b(ar)")
-            .block(block)
             .style(Style::default().fg(self.colors.fg));
-        frame.render_widget(commands, area);
+        frame.render_widget(commands, chunks[1]);
     }
 
     fn render_left_panel(
