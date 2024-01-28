@@ -46,6 +46,12 @@ pub enum Action {
     SwitchProgress,
 }
 
+/// Possible application main screen states.
+pub enum Main {
+    Table(StatefulTable<EntryNodeView>),
+    EmptyDirectory,
+}
+
 /// Possible application preview states.
 pub enum Preview {
     Text(String),
@@ -63,7 +69,7 @@ pub enum AppFocus {
 /// Application state.
 pub struct AppState {
     pub should_quit: bool,
-    pub main_table: StatefulTable<EntryNodeView>,
+    pub main: Main,
     pub preview: Preview,
     pub focus: AppFocus,
     pub current_directory: EntryNodeView,
@@ -98,7 +104,7 @@ impl App {
 
         let state = AppState {
             should_quit: false,
-            main_table: StatefulTable::with_focused(vec![], None),
+            main: Main::EmptyDirectory,
             preview: Preview::Empty,
             focus: AppFocus::MainScreen,
             current_directory: EntryNodeView::new_dir(tree.root_path()),
@@ -186,14 +192,13 @@ impl App {
             return;
         };
         self.state.current_directory = current_directory;
-        let focused_index = {
+        self.state.main = {
             if entries.is_empty() {
-                None
+                Main::EmptyDirectory
             } else {
-                Some(0)
+                Main::Table(StatefulTable::with_focused(entries, Some(0)))
             }
         };
-        self.state.main_table = StatefulTable::with_focused(entries, focused_index);
         self.update_focus();
     }
 
@@ -202,14 +207,23 @@ impl App {
             return;
         };
         self.state.current_directory = current_directory;
+
+        if entries.is_empty() {
+            self.state.main = Main::EmptyDirectory;
+            return;
+        }
+
+        let current_focus = if let Main::Table(table) = &self.state.main {
+            table.focused_index()
+        } else {
+            None
+        };
+
         let focused_index = {
-            if entries.is_empty() {
-                None
-            }
             // If there was a focus prior, try to focus the same entry again.
             // It's possible that there were multiple entries removed, so the focus
             // is out of bounds now. In that case, focus the last entry.
-            else if let Some(index) = self.state.main_table.focused_index() {
+            if let Some(index) = current_focus {
                 Some(index.min(entries.len() - 1))
             }
             // There was no focus prior, so focus the first entry.
@@ -217,7 +231,8 @@ impl App {
                 Some(0)
             }
         };
-        self.state.main_table = StatefulTable::with_focused(entries, focused_index);
+
+        self.state.main = Main::Table(StatefulTable::with_focused(entries, focused_index));
         self.update_focus();
     }
 
@@ -250,10 +265,16 @@ impl App {
     }
 
     fn update_focus(&mut self) {
-        let Some(focused) = self.state.main_table.focused() else {
+        let Main::Table(table) = &self.state.main else {
             self.state.preview = Preview::Empty;
             return;
         };
+
+        let Some(focused) = table.focused() else {
+            self.state.preview = Preview::Empty;
+            return;
+        };
+
         self.state.preview = match focused.entry_type {
             EntryType::File(_) => self.get_file_preview(focused),
             EntryType::Directory => self.get_directory_preview(focused),
@@ -291,9 +312,14 @@ impl App {
                         return Ok(());
                     }
 
-                    if self.state.main_table.focused().is_none() {
+                    let Main::Table(table) = &self.state.main else {
+                        self.set_message("Cannot delete from an empty dir".to_string());
+                        return Ok(());
+                    };
+                    if table.focused().is_none() {
                         return Ok(());
                     }
+
                     self.state.focus = AppFocus::ConfirmDeletePopup(ConfirmDeletePopup::new(true));
                 }
                 Action::BufferInput(input) => {
@@ -305,21 +331,29 @@ impl App {
                     self.state.focus = AppFocus::MainScreen;
                 }
                 Action::FocusNextItem => {
-                    self.state.main_table.focus_next();
+                    if let Main::Table(table) = &mut self.state.main {
+                        table.focus_next();
+                    }
                     self.update_focus();
                 }
                 Action::FocusPreviousItem => {
-                    self.state.main_table.focus_previous();
+                    if let Main::Table(table) = &mut self.state.main {
+                        table.focus_previous();
+                    }
                     self.update_focus();
                 }
                 Action::FocusFirstItem(input) => {
                     self.set_message(input);
-                    self.state.main_table.focus_first();
+                    if let Main::Table(table) = &mut self.state.main {
+                        table.focus_first();
+                    }
                     self.state.focus = AppFocus::MainScreen;
                     self.update_focus();
                 }
                 Action::FocusLastItem => {
-                    self.state.main_table.focus_last();
+                    if let Main::Table(table) = &mut self.state.main {
+                        table.focus_last();
+                    }
                     self.update_focus();
                 }
                 Action::DeletePopupSwitchConfirmation => {
@@ -345,12 +379,21 @@ impl App {
                         return Ok(());
                     }
 
-                    if let Some(focused) = self.state.main_table.focused_index() {
-                        self.state.main_table.toggle_selection(focused);
+                    let Main::Table(table) = &mut self.state.main else {
+                        self.set_message("Cannot select items in an empty dir".to_string());
+                        return Ok(());
+                    };
+
+                    if let Some(focused) = table.focused_index() {
+                        table.toggle_selection(focused);
                     };
                 }
                 Action::EnterFocusedDirectory => {
-                    if let Some(focused) = self.state.main_table.focused() {
+                    let Main::Table(table) = &mut self.state.main else {
+                        return Ok(());
+                    };
+
+                    if let Some(focused) = table.focused() {
                         if !matches!(focused.entry_type, EntryType::Directory) {
                             return Ok(());
                         }
@@ -363,8 +406,8 @@ impl App {
                             )
                             .is_ok()
                         {
+                            table.clear_selected();
                             self.update_view_on_switch_dir();
-                            self.state.main_table.clear_selected();
                         }
                     }
                 }
@@ -372,7 +415,9 @@ impl App {
                     // Ignore if there is no parent anymore.
                     if self.tree.switch_to_parent_directory().is_ok() {
                         self.update_view_on_switch_dir();
-                        self.state.main_table.clear_selected();
+                        if let Main::Table(table) = &mut self.state.main {
+                            table.clear_selected();
+                        }
                     }
                 }
                 Action::SwitchProgress => self.state.show_bar = !self.state.show_bar,
@@ -382,9 +427,11 @@ impl App {
     }
 
     pub fn delete_selected(&mut self) {
-        let mut indeces: Vec<usize> = self
-            .state
-            .main_table
+        let Main::Table(table) = &self.state.main else {
+            return;
+        };
+
+        let mut indices: Vec<usize> = table
             .selected()
             .iter()
             .map(|entry| {
@@ -395,10 +442,10 @@ impl App {
             .collect();
 
         // If no items where selected, delete the focused one
-        if indeces.is_empty() {
-            match self.state.main_table.focused() {
+        if indices.is_empty() {
+            match table.focused() {
                 Some(i) => {
-                    indeces = vec![i
+                    indices = vec![i
                         .index_to_original_node
                         .expect("Node was not given an index")];
                 }
@@ -406,7 +453,7 @@ impl App {
             }
         }
 
-        if self.tree.delete_entries(indeces).is_err() {
+        if self.tree.delete_entries(indices).is_err() {
             self.set_message("Error deleting entry".to_string());
         }
         self.update_view();

@@ -12,7 +12,7 @@ use crate::backend::model::{
 };
 
 use super::{
-    app::{AppFocus, AppState, Preview},
+    app::{AppFocus, AppState, Main, Preview},
     color_theme::ColorTheme,
     components::{confirm_delete::ConfirmDeletePopup, table::StatefulTable},
 };
@@ -186,7 +186,11 @@ impl Renderer {
             frame.render_widget(traversal_indicator, chunks[2]);
         }
 
-        let Some(focused) = state.main_table.focused() else {
+        let Main::Table(table) = &state.main else {
+            return;
+        };
+
+        let Some(focused) = table.focused() else {
             return;
         };
 
@@ -221,15 +225,18 @@ impl Renderer {
         block: Block<'_>,
         state: &mut AppState,
     ) {
-        self.render_table(
-            frame,
-            area,
-            block,
-            &state.current_directory,
-            &mut state.main_table,
-            &state.focus,
-            state.show_bar,
-        );
+        match &mut state.main {
+            Main::Table(table) => self.render_table(
+                frame,
+                area,
+                block,
+                &state.current_directory,
+                table,
+                &state.focus,
+                state.show_bar,
+            ),
+            Main::EmptyDirectory => self.render_empty_directory(frame, area, block),
+        }
     }
 
     fn render_right_panel(
@@ -239,23 +246,24 @@ impl Renderer {
         block: Block<'_>,
         state: &mut AppState,
     ) {
+        let Main::Table(main_table) = &mut state.main else {
+            return frame.render_widget(block, area);
+        };
+
         match &mut state.preview {
-            Preview::Table(table) => {
+            Preview::Table(preview_table) => {
                 self.render_preview_table(
                     frame,
                     area,
                     block,
-                    state
-                        .main_table
-                        .focused()
-                        .expect("a directory should be focused"),
-                    table,
+                    main_table.focused().expect("a directory should be focused"),
+                    preview_table,
                     &state.focus,
                     state.show_bar,
                 );
             }
             Preview::Text(text) => self.render_preview_paragraph(frame, area, block, text),
-            Preview::EmptyDirectory => self.render_preview_empty_directory(frame, area, block),
+            Preview::EmptyDirectory => self.render_empty_directory(frame, area, block),
             Preview::Empty => frame.render_widget(block, area),
         }
     }
@@ -399,7 +407,7 @@ impl Renderer {
         self.render_table(frame, area, block, parent, table_state, app_focus, show_bar);
     }
 
-    fn render_preview_empty_directory(&self, frame: &mut Frame, area: Rect, block: Block<'_>) {
+    fn render_empty_directory(&self, frame: &mut Frame, area: Rect, block: Block<'_>) {
         let text = Text::styled(
             "Empty directory",
             Style::new()
@@ -474,12 +482,17 @@ impl Renderer {
         frame.render_widget(Paragraph::new(yes).alignment(Alignment::Center), yes_area);
         frame.render_widget(Paragraph::new(no).alignment(Alignment::Center), no_area);
 
-        let selected = state.main_table.selected();
+        let Main::Table(table) = &state.main else {
+            // This should not happen as the popup cannot be opened if the main screen is not a table.
+            return;
+        };
+
+        let selected = table.selected();
         let total_size = selected.iter().map(|e| e.sizes.apparent_size).sum::<u64>();
 
         let text = {
             if selected.is_empty() {
-                if let Some(focused) = state.main_table.focused() {
+                if let Some(focused) = table.focused() {
                     let size = Byte::from_u64(focused.sizes.apparent_size)
                         .get_appropriate_unit(byte_unit::UnitType::Decimal);
                     match focused.entry_type {
