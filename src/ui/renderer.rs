@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{block::Title, Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
 
-use crate::backend::model::{
+use crate::backend::{
     entry_node::{EntryNodeView, EntryType, Mode},
     entry_size::EntrySize,
 };

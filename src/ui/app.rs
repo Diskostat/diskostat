@@ -4,7 +4,7 @@ use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
 use crate::backend::{
     disko_tree::DiskoTree,
-    model::entry_node::{EntryNodeView, EntryType},
+    entry_node::{EntryNodeView, EntryType},
 };
 
 use super::{

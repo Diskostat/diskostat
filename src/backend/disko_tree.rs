@@ -17,7 +17,7 @@ use jwalk::{
 
 use crate::ui::event_handling::DiskoEvent;
 
-use super::model::{
+use super::{
     entry_node::{EntryNode, EntryNodeView},
     entry_size::EntrySize,
     tree_walk_state::{CustomJWalkClientState, TreeWalkAncestor, TreeWalkState},
