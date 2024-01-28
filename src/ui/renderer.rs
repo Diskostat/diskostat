@@ -140,18 +140,30 @@ impl Renderer {
     ) {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .constraints([
+                Constraint::Percentage(50),
+                Constraint::Percentage(35),
+                Constraint::Percentage(15),
+            ])
             .split(area);
 
         frame.render_widget(block, area);
 
-        let input =
+        let message =
             Paragraph::new(state.message.clone()).style(Style::default().fg(self.colors.fg));
-        frame.render_widget(input, chunks[0]);
+        frame.render_widget(message, chunks[0]);
 
         let commands = Paragraph::new("Commands: q(uit), s(elect), b(ar)")
             .style(Style::default().fg(self.colors.fg));
         frame.render_widget(commands, chunks[1]);
+
+        if !state.traversal_finished {
+            let traversal_indicator = Paragraph::new(state.indicator.render())
+                .style(Style::default().fg(self.colors.highlight))
+                .alignment(Alignment::Right);
+
+            frame.render_widget(traversal_indicator, chunks[2]);
+        }
     }
 
     fn render_left_panel(

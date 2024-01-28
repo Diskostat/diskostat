@@ -9,7 +9,7 @@ use crate::backend::{
 
 use super::{
     color_theme::ColorTheme,
-    components::{confirm_delete::ConfirmDeletePopup, table::StatefulTable},
+    components::{confirm_delete::ConfirmDeletePopup, indicator, table::StatefulTable},
     disko_event_handling::DiskoEventHandler,
     event_handling::{DiskoEvent, EventHandler},
     renderer,
@@ -20,7 +20,7 @@ use anyhow::Result;
 
 pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>;
 
-const CLEAR_MESSAGE_AFTER_SECONDS: u64 = 1;
+const CLEAR_MESSAGE_AFTER_SECONDS: u64 = 2;
 
 /// All possible application actions.
 #[derive(Clone)]
@@ -71,6 +71,7 @@ pub struct AppState {
     pub show_bar: bool,
     pub message: String,
     pub clear_message_ticks: u64,
+    pub indicator: indicator::Indicator,
 }
 
 /// Application.
@@ -105,6 +106,7 @@ impl App {
             show_bar: false,
             message: String::new(),
             clear_message_ticks: 0,
+            indicator: indicator::Indicator::new(indicator::ASCII, "Traversing".to_string()),
         };
 
         let disko_events = DiskoEventHandler::default();
@@ -232,6 +234,7 @@ impl App {
         if self.state.traversal_finished {
             return;
         }
+        self.state.indicator.next_step();
         self.update_view();
     }
 
@@ -274,6 +277,7 @@ impl App {
                 Action::Tick => self.tick(),
                 Action::Quit => self.quit(),
                 Action::SetTraversalFinished => {
+                    self.set_message("Traversal finished".to_string());
                     self.state.traversal_finished = true;
                     self.update_view();
                 }
@@ -333,6 +337,11 @@ impl App {
                     self.state.focus = AppFocus::MainScreen;
                 }
                 Action::ToggleSelection => {
+                    if !self.state.traversal_finished {
+                        self.set_message("Cannot select while traversing".to_string());
+                        return Ok(());
+                    }
+
                     if let Some(focused) = self.state.main_table.focused_index() {
                         self.state.main_table.toggle_selection(focused);
                     };
