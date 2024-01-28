@@ -100,7 +100,7 @@ impl DiskoTree {
             .read()
             .expect("Failed to read current directory");
         let subdir_arc = current_directory
-            .get_child(index)
+            .get_child_at(index)
             .context("Failed to get child at given index")?;
         self.current_directory = Some(subdir_arc);
         Ok(())
@@ -148,7 +148,7 @@ impl DiskoTree {
                 .as_ref()?
                 .read()
                 .expect("Failed to read current directory");
-            current_directory.get_child(index)?
+            current_directory.get_child_at(index)?
         };
         let subdir = subdir_arc
             .read()

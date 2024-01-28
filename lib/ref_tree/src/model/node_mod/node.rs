@@ -29,7 +29,7 @@ impl<T> Node<T> {
 
     /// Returns the child at the given index.
     /// Returns `None` if index is out of bounds.
-    pub fn get_child(&self, index: usize) -> Option<Arc<RwLock<Node<T>>>> {
+    pub fn get_child_at(&self, index: usize) -> Option<Arc<RwLock<Node<T>>>> {
         self.children.get(index).cloned()
     }
 }
