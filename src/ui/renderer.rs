@@ -6,7 +6,10 @@ use ratatui::{
     widgets::{block::Title, Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
 
-use crate::backend::model::entry_node::{EntryNodeView, Mode};
+use crate::backend::model::{
+    entry_node::{EntryNodeView, Mode},
+    entry_type::EntryType,
+};
 
 use super::{
     app::{AppFocus, AppState, Preview},
@@ -44,7 +47,7 @@ impl Renderer {
         match &state.focus {
             AppFocus::ConfirmDeletePopup(popup) => {
                 let popup_area = Self::get_centered_rect(25, 25, frame.size());
-                self.render_confirm_delete_popup(frame, popup_area, popup);
+                self.render_confirm_delete_popup(frame, popup_area, state, popup);
             }
             AppFocus::MainScreen => (),
             AppFocus::BufferingInput => (),
@@ -426,6 +429,7 @@ impl Renderer {
         &self,
         frame: &mut Frame,
         area: Rect,
+        state: &AppState,
         confirm_delete_popup: &ConfirmDeletePopup,
     ) {
         frame.render_widget(Clear, area);
@@ -444,13 +448,6 @@ impl Renderer {
             .margin(1)
             .split(area);
         let text_area = layout[0];
-
-        let text = Paragraph::new("Are you sure you want to delete ...?")
-            .style(Style::default().fg(self.colors.fg))
-            .wrap(Wrap { trim: true })
-            .alignment(Alignment::Center);
-
-        frame.render_widget(text, text_area);
 
         let tabs_area = Layout::default()
             .direction(Direction::Horizontal)
@@ -476,5 +473,44 @@ impl Renderer {
 
         frame.render_widget(Paragraph::new(yes).alignment(Alignment::Center), yes_area);
         frame.render_widget(Paragraph::new(no).alignment(Alignment::Center), no_area);
+
+        let selected = state.main_table.selected();
+        let total_size = selected.iter().map(|e| e.sizes.apparent_size).sum::<u64>();
+
+        let text = {
+            if selected.is_empty() {
+                if let Some(focused) = state.main_table.focused() {
+                    let size = Byte::from_u64(focused.sizes.apparent_size)
+                        .get_appropriate_unit(byte_unit::UnitType::Decimal);
+                    match focused.entry_type {
+                        EntryType::Directory => format!(
+                            "Are you sure you want to delete the directory '{}' and all of its contents? [{:.2}]",
+                            focused.name,
+                            size,
+                        ),
+                        EntryType::File(_) => format!(
+                            "Are you sure you want to delete the file '{}'? [{:.2}]",
+                            focused.name,
+                            size,
+                        ),
+                    }
+                } else {
+                    // This should never happen.
+                    String::new()
+                }
+            } else {
+                format!(
+                    "Are you sure you want to delete the selected items? [{:.2}]",
+                    Byte::from_u64(total_size).get_appropriate_unit(byte_unit::UnitType::Decimal)
+                )
+            }
+        };
+
+        let text = Paragraph::new(text)
+            .style(Style::default().fg(self.colors.fg))
+            .wrap(Wrap { trim: true })
+            .alignment(Alignment::Center);
+
+        frame.render_widget(text, text_area);
     }
 }

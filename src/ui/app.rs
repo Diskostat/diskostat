@@ -291,6 +291,9 @@ impl App {
                         return Ok(());
                     }
 
+                    if self.state.main_table.focused().is_none() {
+                        return Ok(());
+                    }
                     self.state.focus = AppFocus::ConfirmDeletePopup(ConfirmDeletePopup::new(true));
                 }
                 Action::BufferInput(input) => {

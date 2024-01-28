@@ -47,6 +47,13 @@ impl<T> StatefulTable<T> {
         self.state.selected()
     }
 
+    pub fn selected(&self) -> Vec<&T> {
+        self.selected
+            .iter()
+            .filter_map(|i| self.items.get(*i))
+            .collect()
+    }
+
     pub fn is_selected(&self, index: usize) -> bool {
         self.selected.contains(&index)
     }
