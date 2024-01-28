@@ -279,20 +279,33 @@ impl Renderer {
         #[cfg(not(any(unix, windows)))]
         let mode_size: u16 = 0;
 
+        let padding = 3;
         let left_half_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Length(mode_size + 3),
-                Constraint::Length(16 + 3),
+                Constraint::Length(mode_size + padding),
+                Constraint::Length(16 + padding),
+                // Size: 123.45 KB
+                Constraint::Length(6 + 9 + padding),
                 Constraint::Min(1),
             ])
             .split(left_half);
 
         frame.render_widget(block, area);
 
+        let root_size = Byte::from_u64(if state.show_disk_size {
+            state.current_directory.sizes.disk_size
+        } else {
+            state.current_directory.sizes.apparent_size
+        })
+        .get_appropriate_unit(byte_unit::UnitType::Decimal);
+        let root_size = Paragraph::new(format!("Size: {root_size:>8.2}",))
+            .style(Style::default().fg(self.colors.fg));
+        frame.render_widget(root_size, left_half_chunks[2]);
+
         let message =
             Paragraph::new(state.message.clone()).style(Style::default().fg(self.colors.fg));
-        frame.render_widget(message, left_half_chunks[2]);
+        frame.render_widget(message, left_half_chunks[3]);
 
         let commands = Paragraph::new("Commands: q(uit), s(elect), b(ar), d(elete), a(pparent)")
             .style(Style::default().fg(self.colors.fg));
