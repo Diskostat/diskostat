@@ -1,8 +1,13 @@
 use std::{
-    collections::{hash_map, HashMap},
     fmt::{Debug, Formatter},
     fs,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
+};
+
+#[cfg(unix)]
+use std::{
+    collections::{hash_map, HashMap},
+    sync::Mutex,
 };
 
 use super::entry_node::EntryNode;
