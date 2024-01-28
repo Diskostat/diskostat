@@ -421,7 +421,7 @@ impl Renderer {
 
             Row::new(vec![
                 self.get_selection_cell(is_selected),
-                self.get_name_cell(data.name.clone(), is_focused, app_focus),
+                self.get_name_cell(data.name.clone(), data.entry_type, is_focused, app_focus),
                 self.get_size_progress_cell(
                     data.sizes,
                     total_size,
@@ -466,12 +466,22 @@ impl Renderer {
         ))
     }
 
-    fn get_name_cell<'a>(&self, name: String, is_focused: bool, app_focus: &AppFocus) -> Cell<'a> {
+    fn get_name_cell<'a>(
+        &self,
+        name: String,
+        entry_type: EntryType,
+        is_focused: bool,
+        app_focus: &AppFocus,
+    ) -> Cell<'a> {
         let style = match app_focus {
-            AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => {
-                Style::default().fg(self.colors.primary_bg)
-            }
-            _ => Style::default(),
+            AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => match entry_type {
+                EntryType::Directory => Style::default().fg(self.colors.primary_bg),
+                EntryType::File => Style::default().fg(self.colors.primary_bg),
+            },
+            _ => match entry_type {
+                EntryType::Directory => Style::default().fg(self.colors.primary),
+                EntryType::File => Style::default(),
+            },
         };
 
         Cell::from(Text::from(name)).style(style)
