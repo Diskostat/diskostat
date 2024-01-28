@@ -178,8 +178,22 @@ impl App {
             return;
         };
         self.state.current_directory = current_directory;
-        self.state.main_table =
-            StatefulTable::with_focused(entries, self.state.main_table.focused_index());
+        let focused_index = {
+            if entries.is_empty() {
+                None
+            }
+            // If there was a focus prior, try to focus the same entry again.
+            // It's possible that there were multiple entries removed, so the focus
+            // is out of bounds now. In that case, focus the last entry.
+            else if let Some(index) = self.state.main_table.focused_index() {
+                Some(index.min(entries.len() - 1))
+            }
+            // There was no focus prior focus the first entry
+            else {
+                Some(0)
+            }
+        };
+        self.state.main_table = StatefulTable::with_focused(entries, focused_index);
         self.update_focus();
     }
 
