@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{block::Title, Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
 
-use crate::backend::model::entry_node::EntryNodeView;
+use crate::backend::model::entry_node::{EntryNodeView, Mode};
 
 use super::{
     app::{AppFocus, AppState, Preview},
@@ -147,11 +147,29 @@ impl Renderer {
             ])
             .split(area);
 
+        let left_half = chunks[0];
+
+        #[cfg(unix)]
+        let mode_size: u16 = 10;
+        #[cfg(windows)]
+        let mode_size: u16 = 5;
+        #[cfg(not(any(unix, windows)))]
+        let mode_size: u16 = 0;
+
+        let left_half_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(mode_size + 1),
+                Constraint::Length(16 + 1),
+                Constraint::Min(1),
+            ])
+            .split(left_half);
+
         frame.render_widget(block, area);
 
         let message =
             Paragraph::new(state.message.clone()).style(Style::default().fg(self.colors.fg));
-        frame.render_widget(message, chunks[0]);
+        frame.render_widget(message, left_half_chunks[2]);
 
         let commands = Paragraph::new("Commands: q(uit), s(elect), b(ar)")
             .style(Style::default().fg(self.colors.fg));
@@ -164,6 +182,33 @@ impl Renderer {
 
             frame.render_widget(traversal_indicator, chunks[2]);
         }
+
+        let Some(focused) = state.main_table.focused() else {
+            return;
+        };
+
+        let mode_area = left_half_chunks[0];
+
+        match &focused.mode {
+            Mode::Attributes(attributes) => {
+                let mode =
+                    Paragraph::new(attributes.clone()).style(Style::default().fg(self.colors.fg));
+                frame.render_widget(mode, mode_area);
+            }
+            Mode::Permissions(permissions) => {
+                let mode =
+                    Paragraph::new(permissions.clone()).style(Style::default().fg(self.colors.fg));
+                frame.render_widget(mode, mode_area);
+            }
+            Mode::Unknown => (),
+        }
+
+        let Some(accessed_time) = focused.access_time else {
+            return;
+        };
+        let access_time = Paragraph::new(accessed_time.format("%d.%m.%Y %H:%M").to_string())
+            .style(Style::default().fg(self.colors.fg));
+        frame.render_widget(access_time, left_half_chunks[1]);
     }
 
     fn render_left_panel(

@@ -69,14 +69,9 @@ impl DiskoTree {
                 let child = child
                     .read()
                     .expect("Failed to read child while getting children");
-                EntryNodeView {
-                    name: child.data.name.clone(),
-                    path: child.data.path.clone(),
-                    sizes: child.data.sizes,
-                    descendants_count: child.data.descendants_count,
-                    entry_type: child.data.entry_type,
-                    index_to_original_node: Some(index),
-                }
+                let mut entry = EntryNodeView::from_entry_node(&child.data);
+                entry.index_to_original_node = Some(index);
+                entry
             })
             .collect();
         children.sort_by(|a, b| b.sizes.apparent_size.cmp(&a.sizes.apparent_size));
@@ -139,14 +134,7 @@ impl DiskoTree {
             .read()
             .expect("Failed to read current directory");
         let children = Self::get_children(&current_directory);
-        let current_directory_view = EntryNodeView {
-            name: current_directory.data.name.clone(),
-            path: current_directory.data.path.clone(),
-            sizes: current_directory.data.sizes,
-            descendants_count: current_directory.data.descendants_count,
-            entry_type: current_directory.data.entry_type,
-            index_to_original_node: None,
-        };
+        let current_directory_view = EntryNodeView::from_entry_node(&current_directory.data);
         Some((current_directory_view, children))
     }
 
