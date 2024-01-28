@@ -135,6 +135,125 @@ impl Renderer {
         frame.render_widget(path, area);
     }
 
+    #[cfg(windows)]
+    fn get_mode(&self, mode: u32) -> Paragraph<'_> {
+        let mut result = Vec::new();
+
+        // https://learn.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants
+        if mode & 0x00000010 == 0 {
+            result.push(Span::from("-").style(Style::default().fg(self.colors.fg)));
+        } else {
+            result.push(Span::from("d").style(Style::default().fg(self.colors.primary)));
+        };
+        if mode & 0x00000020 == 0 {
+            result.push(Span::from("-").style(Style::default().fg(self.colors.fg)));
+        } else {
+            result.push(Span::from("a").style(Style::default().fg(self.colors.secondary)));
+        };
+        if mode & 0x00000001 == 0 {
+            result.push(Span::from("-").style(Style::default().fg(self.colors.fg)));
+        } else {
+            result.push(Span::from("r").style(Style::default().fg(self.colors.tertiary)));
+        };
+        if mode & 0x00000002 == 0 {
+            result.push(Span::from("-").style(Style::default().fg(self.colors.fg)));
+        } else {
+            result.push(Span::from("h").style(Style::default().fg(self.colors.highlight)));
+        };
+        if mode & 0x00000004 == 0 {
+            result.push(Span::from("-").style(Style::default().fg(self.colors.fg)));
+        } else {
+            result.push(Span::from("s").style(Style::default().fg(self.colors.highlight)));
+        };
+
+        Paragraph::new(Line::from(result))
+    }
+
+    #[cfg(unix)]
+    fn get_access_string_triple(&self, octal: u32) -> Vec<Span<'_>> {
+        let mut result = Vec::new();
+        result.push(if octal & 0o4 == 0 {
+            Span::from("-").style(Style::default().fg(self.colors.fg))
+        } else {
+            Span::from("r").style(Style::default().fg(self.colors.primary))
+        });
+
+        result.push(if octal & 0o2 == 0 {
+            Span::from("-").style(Style::default().fg(self.colors.fg))
+        } else {
+            Span::from("w").style(Style::default().fg(self.colors.secondary))
+        });
+
+        result.push(if octal & 0o1 == 0 {
+            Span::from("-").style(Style::default().fg(self.colors.fg))
+        } else {
+            Span::from("x").style(Style::default().fg(self.colors.tertiary))
+        });
+
+        result
+    }
+
+    #[cfg(unix)]
+    fn get_mode(&self, mode: u32) -> Paragraph<'_> {
+        let mut user = self.get_access_string_triple(mode >> 6);
+        let mut group = self.get_access_string_triple(mode >> 3);
+        let mut others = self.get_access_string_triple(mode);
+
+        // SUID
+        if mode & 0o4000 != 0 {
+            user.pop();
+            if mode & 0o100 == 0 {
+                user.push(Span::from("S").style(Style::default().fg(self.colors.highlight)));
+            } else {
+                user.push(Span::from("s").style(Style::default().fg(self.colors.highlight)));
+            }
+        }
+        // SGID
+        if mode & 0o2000 != 0 {
+            group.pop();
+            if mode & 0o010 == 0 {
+                group.push(Span::from("S").style(Style::default().fg(self.colors.highlight)));
+            } else {
+                group.push(Span::from("s").style(Style::default().fg(self.colors.highlight)));
+            }
+        }
+        // Sticky
+        if mode & 0o1000 != 0 {
+            others.pop();
+            others.push(Span::from("t").style(Style::default().fg(self.colors.highlight)));
+        }
+
+        let masked = mode & 0o170000;
+
+        // https://man7.org/linux/man-pages/man7/inode.7.html
+        let file_type = if masked == 0o140000 {
+            "s"
+        } else if masked == 0o120000 {
+            "l"
+        } else if masked == 0o100000 {
+            "-"
+        } else if masked == 0o060000 {
+            "b"
+        } else if masked == 0o040000 {
+            "d"
+        } else if masked == 0o020000 {
+            "c"
+        } else if masked == 0o010000 {
+            "p"
+        // Should not happen.
+        } else {
+            "?"
+        };
+
+        let mut result =
+            vec![Span::from(file_type).style(Style::default().fg(self.colors.highlight))];
+        result.append(&mut user);
+        result.append(&mut group);
+        result.append(&mut others);
+
+        Paragraph::new(Line::from(result))
+    }
+
     fn render_bottom_panel(
         &self,
         frame: &mut Frame,
@@ -197,15 +316,13 @@ impl Renderer {
 
         let mode_area = left_half_chunks[0];
 
-        match &focused.mode {
+        match focused.mode {
             Mode::Attributes(attributes) => {
-                let mode =
-                    Paragraph::new(attributes.clone()).style(Style::default().fg(self.colors.fg));
+                let mode = self.get_mode(attributes);
                 frame.render_widget(mode, mode_area);
             }
             Mode::Permissions(permissions) => {
-                let mode =
-                    Paragraph::new(permissions.clone()).style(Style::default().fg(self.colors.fg));
+                let mode = self.get_mode(permissions);
                 frame.render_widget(mode, mode_area);
             }
             Mode::Unknown => (),

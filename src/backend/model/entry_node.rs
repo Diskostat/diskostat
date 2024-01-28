@@ -35,8 +35,8 @@ pub struct EntryNodeView {
 }
 
 pub enum Mode {
-    Permissions(String),
-    Attributes(String),
+    Permissions(u32),
+    Attributes(u32),
     Unknown,
 }
 
@@ -122,97 +122,14 @@ fn extract_file_name(path: &Path) -> String {
 fn extract_mode(metadata: &Metadata) -> Mode {
     use std::os::windows::fs::MetadataExt;
     let attributes = metadata.file_attributes();
-    let mut result = String::new();
-    // https://learn.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants
-    if attributes & 0x00000010 == 0 {
-        result.push_str("-");
-    } else {
-        result.push_str("d");
-    };
-    if attributes & 0x00000020 == 0 {
-        result.push_str("-");
-    } else {
-        result.push_str("a");
-    };
-    if attributes & 0x00000001 == 0 {
-        result.push_str("-");
-    } else {
-        result.push_str("r");
-    };
-    if attributes & 0x00000002 == 0 {
-        result.push_str("-");
-    } else {
-        result.push_str("h");
-    };
-    if attributes & 0x00000004 == 0 {
-        result.push_str("-");
-    } else {
-        result.push_str("s");
-    };
-    Mode::Attributes(result)
-}
-
-#[cfg(unix)]
-fn get_access_string_triple(octal: u32) -> String {
-    let mut result = String::new();
-    result.push_str(if octal & 0o4 == 0 { "-" } else { "r" });
-    result.push_str(if octal & 0o2 == 0 { "-" } else { "w" });
-    result.push_str(if octal & 0o1 == 0 { "-" } else { "x" });
-    result
+    Mode::Attributes(attributes)
 }
 
 #[cfg(unix)]
 fn extract_mode(metadata: &Metadata) -> Mode {
     use std::os::unix::fs::MetadataExt;
     let mode = metadata.mode();
-    let mut user = get_access_string_triple(mode >> 6);
-    let mut group = get_access_string_triple(mode >> 3);
-    let mut others = get_access_string_triple(mode);
-
-    // SUID
-    if mode & 0o4000 != 0 {
-        if mode & 0o100 == 0 {
-            user.replace_range(2..3, "S");
-        } else {
-            user.replace_range(2..3, "s");
-        }
-    }
-    // SGID
-    if mode & 0o2000 != 0 {
-        if mode & 0o010 == 0 {
-            group.replace_range(2..3, "S");
-        } else {
-            group.replace_range(2..3, "s");
-        }
-    }
-    // Sticky
-    if mode & 0o1000 != 0 {
-        others.replace_range(2..3, "t");
-    }
-
-    let masked = mode & 0o170000;
-
-    // https://man7.org/linux/man-pages/man7/inode.7.html
-    let file_type = if masked == 0o140000 {
-        "s"
-    } else if masked == 0o120000 {
-        "l"
-    } else if masked == 0o100000 {
-        "-"
-    } else if masked == 0o060000 {
-        "b"
-    } else if masked == 0o040000 {
-        "d"
-    } else if masked == 0o020000 {
-        "c"
-    } else if masked == 0o010000 {
-        "p"
-    // Should not happen.
-    } else {
-        "?"
-    };
-
-    Mode::Permissions(format!("{file_type}{user}{group}{others}"))
+    Mode::Permissions(mode)
 }
 
 #[cfg(not(any(unix, windows)))]
