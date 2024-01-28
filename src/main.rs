@@ -10,8 +10,6 @@ use ui::app::App;
 
 use clap::Parser;
 
-use dunce;
-
 use crate::backend::disko_tree::DiskoTree;
 
 const DEFAULT_TICK_RATE: f64 = 4.0;
