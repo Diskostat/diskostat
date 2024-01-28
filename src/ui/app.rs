@@ -385,12 +385,12 @@ impl App {
         let mut indeces: Vec<usize> = self
             .state
             .main_table
-            .selected
+            .selected()
             .iter()
-            .map(|i| {
-                self.state.main_table.items[*i]
+            .map(|entry| {
+                entry
                     .index_to_original_node
-                    .expect("Node was not given an index")
+                    .expect("root should never be selected")
             })
             .collect();
 
@@ -400,7 +400,7 @@ impl App {
                 Some(i) => {
                     indeces = vec![i
                         .index_to_original_node
-                        .expect("Node was not given an index")]
+                        .expect("Node was not given an index")];
                 }
                 _ => return,
             }
