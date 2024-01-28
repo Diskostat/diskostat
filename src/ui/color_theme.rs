@@ -20,6 +20,7 @@ pub struct ColorTheme {
 }
 
 impl ColorTheme {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         primary: Color,
         secondary: Color,
