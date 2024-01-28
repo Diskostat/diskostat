@@ -285,8 +285,8 @@ impl Renderer {
             .constraints([
                 Constraint::Length(mode_size + padding),
                 Constraint::Length(16 + padding),
-                // Size: 123.45 KB
-                Constraint::Length(6 + 9 + padding),
+                // 123.45 KB
+                Constraint::Length(9 + padding),
                 Constraint::Min(1),
             ])
             .split(left_half);
@@ -299,8 +299,8 @@ impl Renderer {
             state.current_directory.sizes.apparent_size
         })
         .get_appropriate_unit(byte_unit::UnitType::Decimal);
-        let root_size = Paragraph::new(format!("Size: {root_size:>8.2}",))
-            .style(Style::default().fg(self.colors.fg));
+        let root_size =
+            Paragraph::new(format!("{root_size:>9.2}",)).style(Style::default().fg(self.colors.fg));
         frame.render_widget(root_size, left_half_chunks[2]);
 
         let message =
