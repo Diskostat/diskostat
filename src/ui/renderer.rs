@@ -474,13 +474,12 @@ impl Renderer {
         app_focus: &AppFocus,
     ) -> Cell<'a> {
         let style = match app_focus {
-            AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => match entry_type {
-                EntryType::Directory => Style::default().fg(self.colors.primary_bg),
-                EntryType::File => Style::default().fg(self.colors.primary_bg),
-            },
+            AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => {
+                Style::default().fg(self.colors.primary_bg)
+            }
             _ => match entry_type {
                 EntryType::Directory => Style::default().fg(self.colors.primary),
-                EntryType::File => Style::default(),
+                EntryType::File => Style::default().fg(self.colors.fg),
             },
         };
 
