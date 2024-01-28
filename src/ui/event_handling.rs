@@ -12,7 +12,7 @@ use std::{
 
 /// Terminal events.
 #[derive(Clone, Copy, Debug)]
-pub enum Event {
+pub enum DiskoEvent {
     /// Initialize the terminal application.
     Init,
     /// Render the terminal application.
@@ -33,9 +33,9 @@ pub enum Event {
 #[derive(Debug)]
 pub struct EventHandler {
     /// Event sender channel.
-    sender: mpsc::Sender<Event>,
+    sender: mpsc::Sender<DiskoEvent>,
     /// Event receiver channel.
-    receiver: mpsc::Receiver<Event>,
+    receiver: mpsc::Receiver<DiskoEvent>,
     /// The rate at which [`Event::Tick`] events should be sent.
     tick_rate: f64,
     /// The rate at which [`Event::Render`] events should be sent.
@@ -51,8 +51,8 @@ impl EventHandler {
     pub fn new(
         tick_rate: f64,
         render_rate: f64,
-        sender: mpsc::Sender<Event>,
-        receiver: mpsc::Receiver<Event>,
+        sender: mpsc::Sender<DiskoEvent>,
+        receiver: mpsc::Receiver<DiskoEvent>,
     ) -> Self {
         Self {
             sender,
@@ -64,14 +64,14 @@ impl EventHandler {
         }
     }
 
-    pub fn get_event_sender(&self) -> mpsc::Sender<Event> {
+    pub fn get_event_sender(&self) -> mpsc::Sender<DiskoEvent> {
         self.sender.clone()
     }
 
     /// Starts the processing of events.
     pub fn start(&mut self) -> Result<()> {
         self.sender
-            .send(Event::Init)
+            .send(DiskoEvent::Init)
             .expect("Failed to send init event");
 
         let tick_delay = Duration::try_from_secs_f64(1.0 / self.tick_rate)?;
@@ -95,7 +95,7 @@ impl EventHandler {
 
     fn handle_tick(
         tick_delay: Duration,
-        tick_sender: mpsc::Sender<Event>,
+        tick_sender: mpsc::Sender<DiskoEvent>,
         cancel_tick_handler: Arc<AtomicBool>,
     ) {
         let mut last_tick = Instant::now();
@@ -116,7 +116,7 @@ impl EventHandler {
 
             if last_tick.elapsed() >= tick_delay {
                 tick_sender
-                    .send(Event::Tick)
+                    .send(DiskoEvent::Tick)
                     .expect("Failed to send tick event.");
                 last_tick = Instant::now();
             }
@@ -127,30 +127,30 @@ impl EventHandler {
         }
     }
 
-    fn read_crossterm_event() -> Option<Event> {
+    fn read_crossterm_event() -> Option<DiskoEvent> {
         match crossterm::event::read().expect("Unable to read event.") {
             CrosstermEvent::Key(e) => {
                 if e.kind == KeyEventKind::Press {
-                    Some(Event::Key(e))
+                    Some(DiskoEvent::Key(e))
                 } else {
                     None // ignore KeyEventKind::Release on windows
                 }
             }
-            CrosstermEvent::Mouse(e) => Some(Event::Mouse(e)),
-            CrosstermEvent::Resize(w, h) => Some(Event::Resize(w, h)),
+            CrosstermEvent::Mouse(e) => Some(DiskoEvent::Mouse(e)),
+            CrosstermEvent::Resize(w, h) => Some(DiskoEvent::Resize(w, h)),
             _ => None,
         }
     }
 
     fn handle_render(
         render_delay: Duration,
-        render_sender: mpsc::Sender<Event>,
+        render_sender: mpsc::Sender<DiskoEvent>,
         cancel_render_handler: Arc<AtomicBool>,
     ) {
         loop {
             thread::sleep(render_delay);
             render_sender
-                .send(Event::Render)
+                .send(DiskoEvent::Render)
                 .expect("Failed to send render event.");
 
             if cancel_render_handler.load(Ordering::SeqCst) {
@@ -174,7 +174,7 @@ impl EventHandler {
     ///
     /// This function will always block the current thread if
     /// there is no data available and it's possible for more data to be sent.
-    pub fn next(&self) -> Result<Event> {
+    pub fn next(&self) -> Result<DiskoEvent> {
         Ok(self.receiver.recv()?)
     }
 }

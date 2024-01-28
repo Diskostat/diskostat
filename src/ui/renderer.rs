@@ -47,6 +47,7 @@ impl Renderer {
                 self.render_confirm_delete_popup(frame, popup_area, popup);
             }
             AppFocus::MainScreen => (),
+            AppFocus::BufferingInput => (),
         }
     }
 
@@ -236,7 +237,9 @@ impl Renderer {
 
     fn get_row_style(&self, is_focused: bool, app_focus: &AppFocus) -> Style {
         match app_focus {
-            AppFocus::MainScreen if is_focused => Style::default().bg(self.colors.primary),
+            AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => {
+                Style::default().bg(self.colors.primary)
+            }
             _ => Style::default(),
         }
     }
@@ -250,7 +253,9 @@ impl Renderer {
 
     fn get_name_cell<'a>(&self, name: String, is_focused: bool, app_focus: &AppFocus) -> Cell<'a> {
         let style = match app_focus {
-            AppFocus::MainScreen if is_focused => Style::default().fg(self.colors.primary_bg),
+            AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => {
+                Style::default().fg(self.colors.primary_bg)
+            }
             _ => Style::default(),
         };
 
@@ -275,7 +280,7 @@ impl Renderer {
         let color = Color::Rgb(red, green, blue);
 
         let fg = match app_focus {
-            AppFocus::MainScreen if is_focused => self.colors.primary_bg,
+            AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => self.colors.primary_bg,
             _ => color,
         };
 
@@ -296,7 +301,7 @@ impl Renderer {
 
     fn get_size_cell<'a>(&self, size: Byte, is_focused: bool, app_focus: &AppFocus) -> Cell<'a> {
         let fg = match app_focus {
-            AppFocus::MainScreen if is_focused => self.colors.primary_bg,
+            AppFocus::MainScreen | AppFocus::BufferingInput if is_focused => self.colors.primary_bg,
             _ => self.colors.fg,
         };
 

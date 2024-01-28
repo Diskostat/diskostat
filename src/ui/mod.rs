@@ -1,11 +1,11 @@
 /// Application.
 pub mod app;
 
-/// Terminal events and render events handler.
+/// Handlers terminal events and creates render and tick events.
 pub mod event_handling;
 
-/// Keyboard input handling.
-pub mod key_handling;
+/// Handles received events.
+pub mod disko_event_handling;
 
 /// Widget renderer.
 pub mod renderer;

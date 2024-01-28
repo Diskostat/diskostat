@@ -15,7 +15,7 @@ use jwalk::{
     WalkDirGeneric,
 };
 
-use crate::ui::event_handling::Event;
+use crate::ui::event_handling::DiskoEvent;
 
 use super::model::{
     entry_node::{EntryNode, EntryNodeView},
@@ -190,7 +190,7 @@ impl DiskoTree {
     /// ends, the file system from given root path is evauluated and sizes
     /// are calculated.
     /// This method is non-blocking.
-    pub(crate) fn start_background_traversal(&mut self, sender: mpsc::Sender<Event>) {
+    pub(crate) fn start_background_traversal(&mut self, sender: mpsc::Sender<DiskoEvent>) {
         let tree = self.tree.clone();
         let is_traversing = self.is_traversing.clone();
         let stop_traversing = self.stop_traversing.clone();
@@ -207,7 +207,7 @@ impl DiskoTree {
 
             is_traversing.store(false, Ordering::Release);
             // Here we just ignore if the event handler has stopped.
-            let _ = sender.send(Event::TraversalFinished);
+            let _ = sender.send(DiskoEvent::TraversalFinished);
         }));
     }
 

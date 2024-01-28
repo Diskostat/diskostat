@@ -10,8 +10,8 @@ use crate::backend::{
 use super::{
     color_theme::ColorTheme,
     components::{confirm_delete::ConfirmDeletePopup, table::StatefulTable},
-    event_handling::{Event, EventHandler},
-    key_handling::map_key_events,
+    disko_event_handling::DiskoEventHandler,
+    event_handling::{DiskoEvent, EventHandler},
     renderer,
     tui::Tui,
 };
@@ -21,12 +21,16 @@ use anyhow::Result;
 pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>;
 
 /// All possible application actions.
+#[derive(Clone)]
 pub enum Action {
     Tick,
     Quit,
     SetTraversalFinished,
+    Resize(u16, u16),
     ShowMainScreen,
     ShowConfirmDeletePopup,
+    BufferInput(String),
+    InvalidInput(String),
     FocusNextItem,
     FocusPreviousItem,
     FocusFirstItem,
@@ -38,7 +42,6 @@ pub enum Action {
     ConfirmDelete,
     ToggleSelection,
     SwitchProgress,
-    Resize(u16, u16),
 }
 
 /// Possible application preview states.
@@ -52,6 +55,7 @@ pub enum Preview {
 pub enum AppFocus {
     MainScreen,
     ConfirmDeletePopup(ConfirmDeletePopup),
+    BufferingInput,
 }
 
 /// Application state.
@@ -63,12 +67,14 @@ pub struct AppState {
     pub current_directory: EntryNodeView,
     pub traversal_finished: bool,
     pub show_bar: bool,
+    pub message: String,
 }
 
 /// Application.
 pub struct App {
     state: AppState,
     tui: Tui,
+    disko_events: DiskoEventHandler,
     tree: DiskoTree,
 }
 
@@ -93,9 +99,17 @@ impl App {
             current_directory: EntryNodeView::new_dir(tree.root_path()),
             traversal_finished: false,
             show_bar: false,
+            message: String::new(),
         };
 
-        Ok(Self { state, tui, tree })
+        let disko_events = DiskoEventHandler::default();
+
+        Ok(Self {
+            state,
+            tui,
+            disko_events,
+            tree,
+        })
     }
 
     fn get_file_preview(&self, entry: &EntryNodeView) -> Preview {
@@ -140,12 +154,14 @@ impl App {
             let event = self.tui.events.next()?;
 
             // Render the user interface.
-            if let Event::Init | Event::Render = event {
+            if let DiskoEvent::Init | DiskoEvent::Render = event {
                 self.tui.draw(&mut self.state)?;
             }
 
             // Handle events.
-            let action = map_key_events(event, &self.state.focus);
+            let action = self
+                .disko_events
+                .handle_disko_events(event, &self.state.focus);
 
             self.update(action)?;
         }
@@ -237,9 +253,18 @@ impl App {
                     self.state.traversal_finished = true;
                     self.update_view();
                 }
+                Action::Resize(w, h) => self.resize(w, h)?,
                 Action::ShowMainScreen => self.state.focus = AppFocus::MainScreen,
                 Action::ShowConfirmDeletePopup => {
                     self.state.focus = AppFocus::ConfirmDeletePopup(ConfirmDeletePopup::new(true));
+                }
+                Action::BufferInput(input) => {
+                    self.state.message = input;
+                    self.state.focus = AppFocus::BufferingInput;
+                }
+                Action::InvalidInput(input) => {
+                    self.state.message = format!("Invalid input: {}", input);
+                    self.state.focus = AppFocus::MainScreen;
                 }
                 Action::FocusNextItem => {
                     self.state.main_table.focus_next();
@@ -251,6 +276,7 @@ impl App {
                 }
                 Action::FocusFirstItem => {
                     self.state.main_table.focus_first();
+                    self.state.focus = AppFocus::MainScreen;
                     self.update_focus();
                 }
                 Action::FocusLastItem => {
@@ -306,7 +332,6 @@ impl App {
                     }
                 }
                 Action::SwitchProgress => self.state.show_bar = !self.state.show_bar,
-                Action::Resize(w, h) => self.resize(w, h)?,
             }
         }
         Ok(())
