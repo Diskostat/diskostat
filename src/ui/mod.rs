@@ -1,7 +1,7 @@
 /// Application.
 pub mod app;
 
-/// Handlers terminal events and creates render and tick events.
+/// Handles terminal events and creates render and tick events.
 pub mod event_handling;
 
 /// Handles received events.
