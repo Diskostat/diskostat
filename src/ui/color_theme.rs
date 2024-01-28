@@ -10,7 +10,9 @@ pub struct ColorTheme {
     /// Used for default text color.
     pub fg: Color,
     /// Background color used for inverting text colors.
-    pub bg: Color,
+    pub primary_bg: Color,
+    /// Background color used as a background for the progress bar.
+    pub secondary_bg: Color,
     /// Used for highlighting text.
     pub highlight: Color,
 }
@@ -21,7 +23,8 @@ impl ColorTheme {
         secondary: Color,
         tertiary: Color,
         fg: Color,
-        bg: Color,
+        primary_bg: Color,
+        secondary_bg: Color,
         highlight: Color,
     ) -> Self {
         Self {
@@ -29,7 +32,8 @@ impl ColorTheme {
             secondary,
             tertiary,
             fg,
-            bg,
+            primary_bg,
+            secondary_bg,
             highlight,
         }
     }
@@ -42,7 +46,8 @@ impl Default for ColorTheme {
             secondary: Color::Blue,
             tertiary: Color::Green,
             fg: Color::White,
-            bg: Color::Black,
+            primary_bg: Color::Black,
+            secondary_bg: Color::DarkGray,
             highlight: Color::Red,
         }
     }

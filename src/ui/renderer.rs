@@ -250,7 +250,7 @@ impl Renderer {
 
     fn get_name_cell<'a>(&self, name: String, is_focused: bool, app_focus: &AppFocus) -> Cell<'a> {
         let style = match app_focus {
-            AppFocus::MainScreen if is_focused => Style::default().fg(self.colors.bg),
+            AppFocus::MainScreen if is_focused => Style::default().fg(self.colors.primary_bg),
             _ => Style::default(),
         };
 
@@ -275,14 +275,15 @@ impl Renderer {
         let color = Color::Rgb(red, green, blue);
 
         let fg = match app_focus {
-            AppFocus::MainScreen if is_focused => self.colors.bg,
+            AppFocus::MainScreen if is_focused => self.colors.primary_bg,
             _ => color,
         };
 
         if show_bar {
             Cell::from(Line::from(vec![
                 Span::from("\u{25AC}".repeat(filled)).set_style(Style::default().fg(color)),
-                Span::from("\u{25AC}".repeat(empty)).set_style(Style::default().fg(self.colors.bg)),
+                Span::from("\u{25AC}".repeat(empty))
+                    .set_style(Style::default().fg(self.colors.secondary_bg)),
             ]))
         } else {
             Cell::from(Line::from(vec![Span::from(format!(
@@ -295,7 +296,7 @@ impl Renderer {
 
     fn get_size_cell<'a>(&self, size: Byte, is_focused: bool, app_focus: &AppFocus) -> Cell<'a> {
         let fg = match app_focus {
-            AppFocus::MainScreen if is_focused => self.colors.bg,
+            AppFocus::MainScreen if is_focused => self.colors.primary_bg,
             _ => self.colors.fg,
         };
 
@@ -327,7 +328,7 @@ impl Renderer {
             "Empty directory",
             Style::new()
                 .bg(self.colors.fg)
-                .fg(self.colors.bg)
+                .fg(self.colors.primary_bg)
                 .add_modifier(Modifier::UNDERLINED),
         );
 
