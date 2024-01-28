@@ -25,6 +25,10 @@ struct Arguments {
     /// Do not open a terminal UI, only print the summary
     #[arg(short, long)]
     summary: bool,
+
+    /// The number of threads to use for the file system traversal.
+    #[arg(short, long, default_value_t = 4)]
+    threads: usize,
 }
 
 fn main() -> Result<()> {
@@ -36,15 +40,20 @@ fn main() -> Result<()> {
         bail!("{} is not a directory", arguments.path.display());
     }
 
+    if arguments.threads == 0 {
+        bail!("threads must be greater than 0");
+    }
+
+    let mut tree = DiskoTree::new(arguments.path, arguments.threads);
+
     if arguments.summary {
-        let mut tree = DiskoTree::new(arguments.path);
         tree.traverse();
         println!("{tree}");
         return Ok(());
     }
 
     // Create and start the application.
-    let mut app = App::new(DEFAULT_TICK_RATE, DEFAULT_RENDER_RATE, arguments.path)?;
+    let mut app = App::new(DEFAULT_TICK_RATE, DEFAULT_RENDER_RATE, tree)?;
     app.run()?;
     Ok(())
 }

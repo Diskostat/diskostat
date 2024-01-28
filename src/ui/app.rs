@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::PathBuf, sync::mpsc};
+use std::{fs::File, io::Read, sync::mpsc};
 
 use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
@@ -74,7 +74,7 @@ pub struct App {
 
 impl App {
     /// Constructs a new instance of [`App`].
-    pub fn new(tick_rate: f64, render_rate: f64, root: PathBuf) -> Result<Self> {
+    pub fn new(tick_rate: f64, render_rate: f64, tree: DiskoTree) -> Result<Self> {
         // Initialize the terminal user interface.
         let backend = CrosstermBackend::new(std::io::stdout());
         let terminal = Terminal::new(backend)?;
@@ -90,12 +90,10 @@ impl App {
             main_table: StatefulTable::with_focused(vec![], None),
             preview: Preview::Empty,
             focus: AppFocus::MainScreen,
-            current_directory: EntryNodeView::new_dir(root.clone()),
+            current_directory: EntryNodeView::new_dir(tree.root_path()),
             traversal_finished: false,
             show_bar: false,
         };
-
-        let tree = DiskoTree::new(root);
 
         Ok(Self { state, tui, tree })
     }

@@ -9,7 +9,11 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use jwalk::{DirEntry, Parallelism::RayonNewPool, WalkDirGeneric};
+use jwalk::{
+    DirEntry,
+    Parallelism::{RayonNewPool, Serial},
+    WalkDirGeneric,
+};
 
 use crate::ui::event_handling::Event;
 
@@ -26,6 +30,7 @@ pub struct DiskoTree {
     current_directory: Option<Arc<RwLock<Node<EntryNode>>>>,
     traversal_handler: Option<thread::JoinHandle<()>>,
     root: PathBuf,
+    traversal_threads: usize,
     is_traversing: Arc<AtomicBool>,
     stop_traversing: Arc<AtomicBool>,
 }
@@ -33,15 +38,20 @@ pub struct DiskoTree {
 // Public interface
 
 impl DiskoTree {
-    pub(crate) fn new(root: PathBuf) -> Self {
+    pub(crate) fn new(root: PathBuf, traversal_threads: usize) -> Self {
         Self {
             tree: Arc::new(RwLock::new(Tree::new())),
             current_directory: None,
             traversal_handler: None,
             root,
+            traversal_threads,
             is_traversing: Arc::new(AtomicBool::new(false)),
             stop_traversing: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    pub fn root_path(&self) -> PathBuf {
+        self.root.clone()
     }
 
     fn get_children(node: &std::sync::RwLockReadGuard<'_, Node<EntryNode>>) -> Vec<EntryNodeView> {
@@ -160,10 +170,15 @@ impl DiskoTree {
     fn jwalk_walk_dir(
         root: PathBuf,
         tree: Arc<RwLock<Tree<EntryNode>>>,
+        traversal_threads: usize,
     ) -> WalkDirGeneric<(TreeWalkState, ())> {
         WalkDirGeneric::<(TreeWalkState, ())>::new(root)
             .sort(true)
-            .parallelism(RayonNewPool(10))
+            .parallelism(if traversal_threads == 1 {
+                Serial
+            } else {
+                RayonNewPool(traversal_threads)
+            })
             .skip_hidden(false)
             .root_read_dir_state(TreeWalkState::new(tree))
             .process_read_dir(|depth, dir_path, state, children| {
@@ -180,10 +195,11 @@ impl DiskoTree {
         let is_traversing = self.is_traversing.clone();
         let stop_traversing = self.stop_traversing.clone();
         let root = self.root.clone();
+        let traversal_threads = self.traversal_threads;
         self.traversal_handler = Some(thread::spawn(move || {
             is_traversing.store(true, Ordering::Release);
 
-            for _ in Self::jwalk_walk_dir(root, tree) {
+            for _ in Self::jwalk_walk_dir(root, tree, traversal_threads) {
                 if stop_traversing.load(Ordering::Relaxed) {
                     break;
                 }
@@ -210,7 +226,9 @@ impl DiskoTree {
     }
 
     pub(crate) fn traverse(&mut self) {
-        for _ in Self::jwalk_walk_dir(self.root.clone(), self.tree.clone()) {}
+        for _ in Self::jwalk_walk_dir(self.root.clone(), self.tree.clone(), self.traversal_threads)
+        {
+        }
     }
 }
 
