@@ -7,9 +7,8 @@ use ratatui::{
 };
 
 use crate::backend::model::{
-    entry_node::{EntryNodeView, Mode},
+    entry_node::{EntryNodeView, EntryType, Mode},
     entry_size::EntrySize,
-    entry_type::EntryType,
 };
 
 use super::{
@@ -665,7 +664,7 @@ impl Renderer {
                             focused.name,
                             size,
                         ),
-                        EntryType::File(_) => format!(
+                        EntryType::File => format!(
                             "Are you sure you want to delete the file '{}'? [{:.2}]",
                             focused.name,
                             size,

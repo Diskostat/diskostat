@@ -4,7 +4,7 @@ use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 
 use crate::backend::{
     disko_tree::DiskoTree,
-    model::{entry_node::EntryNodeView, entry_type::EntryType},
+    model::entry_node::{EntryNodeView, EntryType},
 };
 
 use super::{
@@ -284,7 +284,7 @@ impl App {
         };
 
         self.state.preview = match focused.entry_type {
-            EntryType::File(_) => self.get_file_preview(focused),
+            EntryType::File => self.get_file_preview(focused),
             EntryType::Directory => self.get_directory_preview(focused),
         };
     }

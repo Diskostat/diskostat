@@ -6,11 +6,13 @@ use std::{
 
 use chrono::{DateTime, Local};
 
-use super::{
-    entry_size::EntrySize,
-    entry_type::{EntryType, FileType},
-    tree_walk_state::CustomJWalkClientState,
-};
+use super::{entry_size::EntrySize, tree_walk_state::CustomJWalkClientState};
+
+#[derive(Clone, Copy, Debug)]
+pub enum EntryType {
+    Directory,
+    File,
+}
 
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
@@ -79,7 +81,6 @@ impl EntryNodeView {
 impl EntryNode {
     pub(crate) fn new_dir(path: &Path) -> Option<(Self, EntrySize)> {
         let Ok(metadata) = fs::metadata(path) else {
-            dbg!("Failed to get metadata from path: ", path);
             return None;
         };
         if !metadata.is_dir() {
@@ -105,7 +106,7 @@ impl EntryNode {
     pub(crate) fn delete_entry(&self) -> std::io::Result<()> {
         match self.entry_type {
             EntryType::Directory => std::fs::remove_dir_all(self.path.clone()),
-            EntryType::File(_) => std::fs::remove_file(self.path.clone()),
+            EntryType::File => std::fs::remove_file(self.path.clone()),
         }
     }
 }
@@ -149,7 +150,7 @@ impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
     type Error = &'static str;
 
     fn try_from(value: &jwalk::DirEntry<CustomJWalkClientState>) -> Result<Self, Self::Error> {
-        let Some(metadata) = Self::extract_metadata(value) else {
+        let Ok(metadata) = value.metadata() else {
             return Err("Error getting metadata from DirEntry");
         };
         let name = value.file_name().to_string_lossy().to_string();
@@ -173,21 +174,6 @@ impl EntryNode {
         if dir_entry.file_type.is_dir() {
             return EntryType::Directory;
         }
-        EntryType::File(FileType::Text)
-    }
-
-    fn extract_metadata(dir_entry: &jwalk::DirEntry<CustomJWalkClientState>) -> Option<Metadata> {
-        match dir_entry.metadata() {
-            Ok(metadata) => Some(metadata),
-            Err(error) => {
-                dbg!(
-                    "Error getting metadata from DirEntry:",
-                    dir_entry,
-                    "\nerror: ",
-                    error
-                );
-                None
-            }
-        }
+        EntryType::File
     }
 }
