@@ -188,7 +188,7 @@ impl App {
             else if let Some(index) = self.state.main_table.focused_index() {
                 Some(index.min(entries.len() - 1))
             }
-            // There was no focus prior focus the first entry
+            // There was no focus prior, so focus the first entry.
             else {
                 Some(0)
             }
