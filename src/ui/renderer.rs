@@ -159,8 +159,8 @@ impl Renderer {
         let left_half_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Length(mode_size + 1),
-                Constraint::Length(16 + 1),
+                Constraint::Length(mode_size + 3),
+                Constraint::Length(16 + 3),
                 Constraint::Min(1),
             ])
             .split(left_half);
