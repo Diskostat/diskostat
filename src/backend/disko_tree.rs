@@ -309,12 +309,12 @@ impl DiskoTree {
             return;
         }
         // Create entry node from jwalks
-        let Some(dir_node) = EntryNode::new_dir(dir_path) else {
+        let Some((dir_node, dir_size)) = EntryNode::new_dir(dir_path) else {
             return;
         };
 
         // Count size of file children.
-        let mut size = EntrySize::default();
+        let mut size = dir_size;
 
         // Create node on tree.
         let node = Self::attach_to_tree(state, dir_node);

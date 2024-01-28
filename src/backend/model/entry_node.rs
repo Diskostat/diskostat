@@ -77,7 +77,7 @@ impl EntryNodeView {
 // Convenience helpers
 
 impl EntryNode {
-    pub(crate) fn new_dir(path: &Path) -> Option<Self> {
+    pub(crate) fn new_dir(path: &Path) -> Option<(Self, EntrySize)> {
         let Ok(metadata) = fs::metadata(path) else {
             dbg!("Failed to get metadata from path: ", path);
             return None;
@@ -87,15 +87,19 @@ impl EntryNode {
         }
 
         let name = extract_file_name(path);
+        let size = EntrySize::new(path, &metadata);
 
-        Some(Self {
-            name,
-            path: path.to_path_buf(),
-            sizes: EntrySize::new(path, &metadata),
-            descendants_count: 0,
-            entry_type: EntryType::Directory,
-            metadata,
-        })
+        Some((
+            Self {
+                name,
+                path: path.to_path_buf(),
+                sizes: EntrySize::default(),
+                descendants_count: 0,
+                entry_type: EntryType::Directory,
+                metadata,
+            },
+            size,
+        ))
     }
 
     pub(crate) fn delete_entry(&self) -> std::io::Result<()> {
