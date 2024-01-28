@@ -20,6 +20,8 @@ use anyhow::Result;
 
 pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>;
 
+const CLEAR_MESSAGE_AFTER_SECONDS: u64 = 1;
+
 /// All possible application actions.
 #[derive(Clone)]
 pub enum Action {
@@ -33,7 +35,7 @@ pub enum Action {
     InvalidInput(String),
     FocusNextItem,
     FocusPreviousItem,
-    FocusFirstItem,
+    FocusFirstItem(String),
     FocusLastItem,
     EnterFocusedDirectory,
     EnterParentDirectory,
@@ -68,6 +70,7 @@ pub struct AppState {
     pub traversal_finished: bool,
     pub show_bar: bool,
     pub message: String,
+    pub clear_message_ticks: u64,
 }
 
 /// Application.
@@ -76,6 +79,7 @@ pub struct App {
     tui: Tui,
     disko_events: DiskoEventHandler,
     tree: DiskoTree,
+    tick_rate: f64,
 }
 
 impl App {
@@ -100,6 +104,7 @@ impl App {
             traversal_finished: false,
             show_bar: false,
             message: String::new(),
+            clear_message_ticks: 0,
         };
 
         let disko_events = DiskoEventHandler::default();
@@ -109,6 +114,7 @@ impl App {
             tui,
             disko_events,
             tree,
+            tick_rate,
         })
     }
 
@@ -215,6 +221,14 @@ impl App {
 
     /// Handles the tick event of the terminal.
     pub fn tick(&mut self) {
+        if !matches!(self.state.focus, AppFocus::BufferingInput)
+            && self.state.clear_message_ticks >= self.tick_rate as u64 * CLEAR_MESSAGE_AFTER_SECONDS
+        {
+            self.clear_message();
+        } else {
+            self.state.clear_message_ticks += 1;
+        }
+
         if self.state.traversal_finished {
             return;
         }
@@ -243,6 +257,16 @@ impl App {
         };
     }
 
+    fn set_message(&mut self, message: String) {
+        self.state.message = message.to_string();
+        self.state.clear_message_ticks = 0;
+    }
+
+    fn clear_message(&mut self) {
+        self.state.message.clear();
+        self.state.clear_message_ticks = 0;
+    }
+
     /// Handle the application actions.
     pub fn update(&mut self, action: Option<Action>) -> Result<()> {
         if let Some(action) = action {
@@ -255,38 +279,34 @@ impl App {
                 }
                 Action::Resize(w, h) => self.resize(w, h)?,
                 Action::ShowMainScreen => {
-                    self.state.message = String::new();
                     self.state.focus = AppFocus::MainScreen;
                 }
                 Action::ShowConfirmDeletePopup => {
                     self.state.focus = AppFocus::ConfirmDeletePopup(ConfirmDeletePopup::new(true));
                 }
                 Action::BufferInput(input) => {
-                    self.state.message = input;
+                    self.set_message(input);
                     self.state.focus = AppFocus::BufferingInput;
                 }
                 Action::InvalidInput(input) => {
-                    self.state.message = format!("Invalid input: {}", input);
+                    self.set_message(format!("Invalid input: {}", input));
                     self.state.focus = AppFocus::MainScreen;
                 }
                 Action::FocusNextItem => {
-                    self.state.message = String::new();
                     self.state.main_table.focus_next();
                     self.update_focus();
                 }
                 Action::FocusPreviousItem => {
-                    self.state.message = String::new();
                     self.state.main_table.focus_previous();
                     self.update_focus();
                 }
-                Action::FocusFirstItem => {
-                    self.state.message = String::new();
+                Action::FocusFirstItem(input) => {
+                    self.set_message(input);
                     self.state.main_table.focus_first();
                     self.state.focus = AppFocus::MainScreen;
                     self.update_focus();
                 }
                 Action::FocusLastItem => {
-                    self.state.message = String::new();
                     self.state.main_table.focus_last();
                     self.update_focus();
                 }
@@ -308,13 +328,11 @@ impl App {
                     self.state.focus = AppFocus::MainScreen;
                 }
                 Action::ToggleSelection => {
-                    self.state.message = String::new();
                     if let Some(focused) = self.state.main_table.focused_index() {
                         self.state.main_table.toggle_selection(focused);
                     };
                 }
                 Action::EnterFocusedDirectory => {
-                    self.state.message = String::new();
                     if let Some(focused) = self.state.main_table.focused() {
                         if !matches!(focused.entry_type, EntryType::Directory) {
                             return Ok(());
@@ -334,17 +352,13 @@ impl App {
                     }
                 }
                 Action::EnterParentDirectory => {
-                    self.state.message = String::new();
                     // Ignore if there is no parent anymore.
                     if self.tree.switch_to_parent_directory().is_ok() {
                         self.update_view_on_switch_dir();
                         self.state.main_table.clear_selected();
                     }
                 }
-                Action::SwitchProgress => {
-                    self.state.message = String::new();
-                    self.state.show_bar = !self.state.show_bar;
-                }
+                Action::SwitchProgress => self.state.show_bar = !self.state.show_bar,
             }
         }
         Ok(())

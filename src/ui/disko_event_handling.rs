@@ -43,7 +43,7 @@ const DEFAULT_SINGLE_KEY_COMMANDS_CONFIRM_DELETE_POPUP: [(KeyCode, Action);
 ];
 
 const DEFAULT_MULTI_KEY_COMMANDS: [(&str, Action); MULTI_KEY_COMMANDS_COUNT] =
-    [("gg", Action::FocusFirstItem)];
+    [("gg", Action::FocusFirstItem(String::new()))];
 
 pub struct DiskoEventHandler {
     buffer: Vec<char>,
@@ -181,7 +181,10 @@ impl DiskoEventHandler {
         match self.multi_key_commands.get(&buffer_content) {
             Some(action) => {
                 self.buffer.clear();
-                Some(action.clone())
+                match action {
+                    Action::FocusFirstItem(_) => Some(Action::FocusFirstItem(buffer_content)),
+                    _ => None,
+                }
             }
             // The buffer content is definitely a prefix of a multi key command
             None => Some(Action::BufferInput(buffer_content)),
