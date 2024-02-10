@@ -40,10 +40,7 @@ Or build from source.
 ## Info
 
 - [Miro board](https://miro.com/app/board/uXjVNSZVn78=/)
-- [Kanban board](https://gitlab.fi.muni.cz/xhercko/diskostat/-/boards)
-- Contributors: Bc. Alex Herčko, učo 514439, Michal Němec, učo 502507,
-  Bc. Jakub Pekár, učo 492788, Bc. Lukáš Urban, učo 492717
-- Deadline: January 2024
+- [Kanban board](https://gitlab.fi.muni.cz/xhercko/diskostat/-/boards) (in move)
 
 
 ### Assignment
