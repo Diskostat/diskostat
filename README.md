@@ -16,9 +16,9 @@ disko
  - Navigate with **hjkl** or your arrow keys.
  - Delete files with **d**.
  - Switch between size on disk and apparent size (file size) with **a**.
- - Switch between bars and persents with **b**.
+ - Switch between bars and percentages with **b**.
  - Find these commands at the right bottom corner of disko.
- - Ivestigate *text files* and *folders* by looking at their preview on the right.
+ - Investigate *text files* and *folders* by looking at their preview on the right.
 
 Find some options with `disko --help`
 
