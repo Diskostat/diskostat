@@ -17,9 +17,7 @@ impl<T> Iterator for NodeToRootIterator<T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // Finish if we're at the root.
-        let Some(current) = self.node.clone() else {
-            return None;
-        };
+        let current = self.node.clone()?;
 
         // Step up the tree.
         self.node = current
