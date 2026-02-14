@@ -17,7 +17,7 @@ pub struct Tree<T> {
     /// Some -> Tree has at least one node.
     ///
     /// Arc - Multi-thread simultaneous access to the root node.
-    /// RwLock
+    /// `RwLock`
     /// - Ability to read from one thread, but write from others without blocking.
     /// - BE writes when adding size from nodes under root, FE reads with tick/whenever.
     /// - BE also reads when asking for children or going up the three.
