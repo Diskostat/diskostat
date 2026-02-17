@@ -670,7 +670,16 @@ impl Renderer {
         };
 
         let selected = table.selected();
-        let total_size = selected.iter().map(|e| e.sizes.apparent_size).sum::<u64>();
+        let total_size = selected
+            .iter()
+            .map(|e| {
+                if state.show_disk_size {
+                    e.sizes.disk_size
+                } else {
+                    e.sizes.apparent_size
+                }
+            })
+            .sum::<u64>();
 
         let text = {
             if selected.is_empty() {
