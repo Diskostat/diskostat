@@ -17,7 +17,6 @@ pub enum EntryType {
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub(crate) struct EntryNode {
-    pub(crate) name: String,
     pub(crate) path: PathBuf,
     pub(crate) sizes: EntrySize,
     pub(crate) dir_size: Option<EntrySize>,
@@ -65,7 +64,7 @@ impl EntryNodeView {
 impl From<&EntryNode> for EntryNodeView {
     fn from(entry_node: &EntryNode) -> Self {
         Self {
-            name: entry_node.name.clone(),
+            name: extract_file_name(&entry_node.path),
             path: entry_node.path.clone(),
             sizes: entry_node.sizes,
             dir_size: entry_node.dir_size,
@@ -93,12 +92,10 @@ impl EntryNode {
             return None;
         }
 
-        let name = extract_file_name(path);
         let size = EntrySize::new(path, &metadata);
 
         Some((
             Self {
-                name,
                 path: path.to_path_buf(),
                 sizes: EntrySize::default(),
                 dir_size: Some(size),
@@ -155,7 +152,12 @@ pub fn extract_mode(_metadata: &Metadata) -> Option<Mode> {
 
 impl Display for EntryNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:<20} • {}", self.name, self.sizes.apparent_size)
+        write!(
+            f,
+            "{:<20} • {}",
+            extract_file_name(&self.path),
+            self.sizes.apparent_size
+        )
     }
 }
 
@@ -166,7 +168,6 @@ impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
         let Ok(metadata) = value.metadata() else {
             return Err("Error getting metadata from DirEntry");
         };
-        let name = value.file_name().to_string_lossy().to_string();
         let entry_type = Self::extract_entry_type(value);
 
         let size = EntrySize::new(value.path().as_path(), &metadata);
@@ -176,7 +177,6 @@ impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
         };
 
         Ok(EntryNode {
-            name,
             path: value.path().clone(),
             sizes: size,
             dir_size,
