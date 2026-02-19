@@ -1,5 +1,5 @@
 use std::{
-    fmt,
+    fmt, fs, mem,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -60,10 +60,7 @@ impl DiskoTree {
         self.root.clone()
     }
 
-    fn get_children(
-        node: &std::sync::RwLockReadGuard<'_, Node<EntryNode>>,
-        sort_by_disk_size: bool,
-    ) -> Vec<EntryNodeView> {
+    fn get_children(node: &Node<EntryNode>, sort_by_disk_size: bool) -> Vec<EntryNodeView> {
         let mut children: Vec<EntryNodeView> = node
             .get_children()
             .iter()
@@ -73,6 +70,7 @@ impl DiskoTree {
                     .read()
                     .expect("Failed to read child while getting children");
                 let mut entry = EntryNodeView::from(&child.data);
+
                 entry.index_to_original_node = Some(index);
                 entry
             })
@@ -128,6 +126,15 @@ impl DiskoTree {
         Ok(())
     }
 
+    pub(crate) fn get_view_of_directory(
+        directory: &Node<EntryNode>,
+        sort_by_disk_size: bool,
+    ) -> (EntryNodeView, Vec<EntryNodeView>) {
+        let children = Self::get_children(directory, sort_by_disk_size);
+        let directory_view = EntryNodeView::from(&directory.data);
+        (directory_view, children)
+    }
+
     /// Get the view of the current directory and its children.
     /// Returns `None` if the current directory is not set, i.e., the traversal
     /// has not yet computed a root.
@@ -147,9 +154,11 @@ impl DiskoTree {
             .as_ref()?
             .read()
             .expect("Failed to read current directory");
-        let children = Self::get_children(&current_directory, sort_by_disk_size);
-        let current_directory_view = EntryNodeView::from(&current_directory.data);
-        Some((current_directory_view, children))
+
+        Some(Self::get_view_of_directory(
+            &current_directory,
+            sort_by_disk_size,
+        ))
     }
 
     /// Get the view of the subdirectory of the current directory at the given
@@ -308,42 +317,44 @@ impl DiskoTree {
         if depth.is_none() {
             return;
         }
-        // Create entry node from jwalks
-        let Some((dir_node, dir_size)) = EntryNode::new_dir(dir_path) else {
+
+        let Ok(dir_metadata) = fs::metadata(dir_path) else {
             return;
         };
 
-        // Count size of file children.
-        let mut size = dir_size;
+        let mut dir_node = EntryNode::new(dir_path.to_path_buf(), &dir_metadata);
+
+        // yank the size leaving 0, since we will add the size later
+        // during backpropagation
+        let mut size = mem::take(&mut dir_node.sizes);
 
         // Create node on tree.
         let node = Self::attach_to_tree(state, dir_node);
 
-        children
-            .iter_mut()
-            // Put reference to results inner types.
-            .map(|dir_entry_result| dir_entry_result.as_ref())
-            // Filter errors out and return just `DirEntry` entries.
-            .filter_map(std::result::Result::ok)
-            .filter(|dir_entry| dir_entry.file_type.is_file())
-            // Map to our `EntryNode`s.
-            .map(EntryNode::try_from)
-            // Throw away when convertion failed.
-            .filter_map(Result::ok)
-            // Finaly process the file children.
-            .for_each(|mut child_node| {
-                if state.file_has_been_seen(&child_node.metadata) {
-                    child_node.sizes = EntrySize::default();
-                }
-                size += child_node.sizes;
-                Tree::attach_child(&node, child_node);
-            });
+        for child in children {
+            let Ok(child) = child else {
+                continue;
+            };
 
-        // Propagate size up including this node to root (including).
+            if !child.file_type().is_file() {
+                continue;
+            }
+
+            let Ok(metadata) = child.metadata() else {
+                continue;
+            };
+
+            let mut entry = EntryNode::new(child.path(), &metadata);
+
+            if state.file_has_been_seen(&metadata) {
+                entry.sizes = EntrySize::default();
+            }
+            size += entry.sizes;
+            Tree::attach_child(&node, entry);
+        }
+
         Self::backprop_size(&node, size, BackpropOperation::Add);
 
-        // Move (i.e. not .clone()) reference to this node as a parent
-        // for the next iteration.
         state.ancestor = TreeWalkAncestor::Parent(node);
     }
 

@@ -328,12 +328,12 @@ impl Renderer {
 
         let mode_area = left_half_chunks[0];
 
-        if let Some(Mode::Attributes(value) | Mode::Permissions(value)) = focused.mode {
+        if let Some(Mode::Attributes(value) | Mode::Permissions(value)) = focused.mode() {
             let mode = self.get_mode(value);
             frame.render_widget(mode, mode_area);
         }
 
-        let Some(accessed_time) = focused.access_time else {
+        let Some(accessed_time) = focused.access_time() else {
             return;
         };
         let access_time = Paragraph::new(accessed_time.format("%d.%m.%Y %H:%M").to_string())
@@ -409,8 +409,7 @@ impl Renderer {
             let is_focused = table_state.is_focused(index);
             let is_selected = table_state.is_selected(index);
 
-            let dir_size = parent.dir_size.unwrap_or_default();
-            let total_size = parent.sizes - dir_size;
+            let total_size = parent.sizes - parent.self_size();
 
             Row::new(vec![
                 self.get_selection_cell(is_selected),
