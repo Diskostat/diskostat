@@ -328,16 +328,9 @@ impl Renderer {
 
         let mode_area = left_half_chunks[0];
 
-        match focused.mode {
-            Mode::Attributes(attributes) => {
-                let mode = self.get_mode(attributes);
-                frame.render_widget(mode, mode_area);
-            }
-            Mode::Permissions(permissions) => {
-                let mode = self.get_mode(permissions);
-                frame.render_widget(mode, mode_area);
-            }
-            Mode::Unknown => (),
+        if let Some(Mode::Attributes(value) | Mode::Permissions(value)) = focused.mode {
+            let mode = self.get_mode(value);
+            frame.render_widget(mode, mode_area);
         }
 
         let Some(accessed_time) = focused.access_time else {
