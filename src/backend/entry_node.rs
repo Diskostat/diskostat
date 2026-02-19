@@ -33,15 +33,15 @@ pub struct EntryNodeView {
     pub dir_size: Option<EntrySize>,
     pub descendants_count: usize,
     pub entry_type: EntryType,
-    pub mode: Mode,
+    pub mode: Option<Mode>,
     pub access_time: Option<DateTime<Local>>,
     pub index_to_original_node: Option<usize>,
 }
 
+#[derive(Clone, Copy, Debug)]
 pub enum Mode {
     Permissions(u32),
     Attributes(u32),
-    Unknown,
 }
 
 impl EntryNodeView {
@@ -55,13 +55,15 @@ impl EntryNodeView {
             entry_type: EntryType::Directory,
             // Unknown here for now, this needs to be updated later during the
             // backend refactor.
-            mode: Mode::Unknown,
+            mode: None,
             access_time: None,
             index_to_original_node: None,
         }
     }
+}
 
-    pub(crate) fn from_entry_node(entry_node: &EntryNode) -> Self {
+impl From<&EntryNode> for EntryNodeView {
+    fn from(entry_node: &EntryNode) -> Self {
         Self {
             name: entry_node.name.clone(),
             path: entry_node.path.clone(),
@@ -124,23 +126,29 @@ fn extract_file_name(path: &Path) -> String {
     path.to_string_lossy().to_string()
 }
 
-#[cfg(windows)]
-fn extract_mode(metadata: &Metadata) -> Mode {
-    use std::os::windows::fs::MetadataExt;
-    let attributes = metadata.file_attributes();
-    Mode::Attributes(attributes)
+#[cfg(any(unix, windows))]
+impl From<&Metadata> for Mode {
+    #[cfg(windows)]
+    fn from(metadata: &Metadata) -> Self {
+        use std::os::windows::fs::MetadataExt;
+        Mode::Attributes(metadata.file_attributes())
+    }
+
+    #[cfg(unix)]
+    fn from(metadata: &Metadata) -> Self {
+        use std::os::unix::fs::MetadataExt;
+        Mode::Permissions(metadata.mode())
+    }
 }
 
-#[cfg(unix)]
-fn extract_mode(metadata: &Metadata) -> Mode {
-    use std::os::unix::fs::MetadataExt;
-    let mode = metadata.mode();
-    Mode::Permissions(mode)
+#[cfg(any(unix, windows))]
+pub fn extract_mode(metadata: &Metadata) -> Option<Mode> {
+    Some(Mode::from(metadata))
 }
 
 #[cfg(not(any(unix, windows)))]
-pub fn extract_mode(_metadata: &Metadata) -> Mode {
-    Mode::Unknown
+pub fn extract_mode(_metadata: &Metadata) -> Option<Mode> {
+    None
 }
 
 // Traits implementations
