@@ -60,8 +60,10 @@ impl EntryNodeView {
             index_to_original_node: None,
         }
     }
+}
 
-    pub(crate) fn from_entry_node(entry_node: &EntryNode) -> Self {
+impl From<&EntryNode> for EntryNodeView {
+    fn from(entry_node: &EntryNode) -> Self {
         Self {
             name: entry_node.name.clone(),
             path: entry_node.path.clone(),
