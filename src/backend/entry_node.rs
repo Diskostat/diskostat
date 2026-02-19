@@ -28,7 +28,7 @@ impl From<&Metadata> for EntryType {
 #[allow(dead_code)]
 pub(crate) struct EntryNode {
     pub(crate) path: PathBuf,
-    pub(crate) sizes: EntrySize,
+    pub(crate) size: EntrySize,
     pub(crate) descendants_count: usize,
     pub(crate) entry_type: EntryType,
 }
@@ -36,7 +36,7 @@ pub(crate) struct EntryNode {
 pub struct EntryNodeView {
     pub name: String,
     pub path: PathBuf,
-    pub sizes: EntrySize,
+    pub size: EntrySize,
     pub descendants_count: usize,
     pub entry_type: EntryType,
     details: OnceCell<Option<EntryDetails>>,
@@ -45,7 +45,7 @@ pub struct EntryNodeView {
 
 pub struct EntryDetails {
     mode: Option<Mode>,
-    size: EntrySize,
+    self_size: EntrySize,
     access_time: Option<DateTime<Local>>,
 }
 
@@ -53,7 +53,7 @@ impl EntryDetails {
     pub fn new(metadata: &Metadata, path: &Path) -> Self {
         Self {
             mode: extract_mode(metadata),
-            size: EntrySize::new(path, metadata),
+            self_size: EntrySize::new(path, metadata),
             access_time: metadata.accessed().ok().map(DateTime::<Local>::from),
         }
     }
@@ -70,7 +70,7 @@ impl EntryNodeView {
         Self {
             name: extract_file_name(&path),
             path,
-            sizes: EntrySize::default(),
+            size: EntrySize::default(),
             descendants_count: 0,
             entry_type: EntryType::Directory,
             details: OnceCell::new(),
@@ -88,7 +88,7 @@ impl EntryNodeView {
     }
 
     pub(crate) fn self_size(&self) -> EntrySize {
-        self.details().map(|d| d.size).unwrap_or_default()
+        self.details().map(|d| d.self_size).unwrap_or_default()
     }
 
     pub(crate) fn access_time(&self) -> Option<DateTime<Local>> {
@@ -105,7 +105,7 @@ impl From<&EntryNode> for EntryNodeView {
         Self {
             name: extract_file_name(&entry_node.path),
             path: entry_node.path.clone(),
-            sizes: entry_node.sizes,
+            size: entry_node.size,
             descendants_count: entry_node.descendants_count,
             entry_type: entry_node.entry_type,
             details: OnceCell::new(),
@@ -118,10 +118,10 @@ impl From<&EntryNode> for EntryNodeView {
 
 impl EntryNode {
     pub(crate) fn new(path: PathBuf, metadata: &Metadata) -> Self {
-        let sizes = EntrySize::new(&path, metadata);
+        let size = EntrySize::new(&path, metadata);
         Self {
             path,
-            sizes,
+            size,
             descendants_count: 0,
             entry_type: metadata.into(),
         }
@@ -176,7 +176,7 @@ impl Display for EntryNode {
             f,
             "{:<20} • {}",
             extract_file_name(&self.path),
-            self.sizes.apparent_size
+            self.size.apparent
         )
     }
 }

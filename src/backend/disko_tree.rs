@@ -78,9 +78,9 @@ impl DiskoTree {
 
         children.sort_by(|a, b| {
             if sort_by_disk_size {
-                b.sizes.disk_size.cmp(&a.sizes.disk_size)
+                b.size.disk.cmp(&a.size.disk)
             } else {
-                b.sizes.apparent_size.cmp(&a.sizes.apparent_size)
+                b.size.apparent.cmp(&a.size.apparent)
             }
         });
 
@@ -286,7 +286,7 @@ impl DiskoTree {
 
             child_data.delete_entry()?;
 
-            deleted_size += child_data.sizes;
+            deleted_size += child_data.size;
             self.tree
                 .clone()
                 .write()
@@ -326,7 +326,7 @@ impl DiskoTree {
 
         // yank the size leaving 0, since we will add the size later
         // during backpropagation
-        let mut size = mem::take(&mut dir_node.sizes);
+        let mut size = mem::take(&mut dir_node.size);
 
         // Create node on tree.
         let node = Self::attach_to_tree(state, dir_node);
@@ -347,9 +347,9 @@ impl DiskoTree {
             let mut entry = EntryNode::new(child.path(), &metadata);
 
             if state.file_has_been_seen(&metadata) {
-                entry.sizes = EntrySize::default();
+                entry.size = EntrySize::default();
             }
-            size += entry.sizes;
+            size += entry.size;
             Tree::attach_child(&node, entry);
         }
 
@@ -384,8 +384,8 @@ impl DiskoTree {
                 .expect("Failed to write while backpropagating size");
 
             match operation {
-                BackpropOperation::Add => node.data.sizes += size,
-                BackpropOperation::Subtract => node.data.sizes -= size,
+                BackpropOperation::Add => node.data.size += size,
+                BackpropOperation::Subtract => node.data.size -= size,
             };
         });
     }

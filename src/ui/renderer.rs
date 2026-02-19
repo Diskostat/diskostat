@@ -293,9 +293,9 @@ impl Renderer {
         frame.render_widget(block, area);
 
         let root_size = Byte::from_u64(if state.show_disk_size {
-            state.current_directory.sizes.disk_size
+            state.current_directory.size.disk
         } else {
-            state.current_directory.sizes.apparent_size
+            state.current_directory.size.apparent
         })
         .get_appropriate_unit(byte_unit::UnitType::Decimal);
         let root_size =
@@ -409,20 +409,20 @@ impl Renderer {
             let is_focused = table_state.is_focused(index);
             let is_selected = table_state.is_selected(index);
 
-            let total_size = parent.sizes - parent.self_size();
+            let total_size_excluding_self = parent.size - parent.self_size();
 
             Row::new(vec![
                 self.get_selection_cell(is_selected),
                 self.get_name_cell(data.name.clone(), data.entry_type, is_focused, app_focus),
                 self.get_size_progress_cell(
-                    data.sizes,
-                    total_size,
+                    data.size,
+                    total_size_excluding_self,
                     show_bar,
                     show_disk_size,
                     is_focused,
                     app_focus,
                 ),
-                self.get_size_cell(data.sizes, show_disk_size, is_focused, app_focus),
+                self.get_size_cell(data.size, show_disk_size, is_focused, app_focus),
             ])
             .style(self.get_row_style(is_focused, app_focus))
         });
@@ -489,9 +489,9 @@ impl Renderer {
         app_focus: &AppFocus,
     ) -> Cell<'a> {
         let (size, total_size) = if show_disk_size {
-            (size.disk_size, total_size.disk_size)
+            (size.disk, total_size.disk)
         } else {
-            (size.apparent_size, total_size.apparent_size)
+            (size.apparent, total_size.apparent)
         };
 
         let rate = (size as f64 / total_size as f64).min(1.0);
@@ -542,9 +542,9 @@ impl Renderer {
         };
 
         let size = if show_disk_size {
-            size.disk_size
+            size.disk
         } else {
-            size.apparent_size
+            size.apparent
         };
 
         let appropriate_size =
@@ -666,9 +666,9 @@ impl Renderer {
             .iter()
             .map(|e| {
                 if state.show_disk_size {
-                    e.sizes.disk_size
+                    e.size.disk
                 } else {
-                    e.sizes.apparent_size
+                    e.size.apparent
                 }
             })
             .sum::<u64>();
@@ -676,7 +676,7 @@ impl Renderer {
         let text = {
             if selected.is_empty() {
                 if let Some(focused) = table.focused() {
-                    let size = Byte::from_u64(focused.sizes.apparent_size)
+                    let size = Byte::from_u64(focused.size.apparent)
                         .get_appropriate_unit(byte_unit::UnitType::Decimal);
                     match focused.entry_type {
                         EntryType::Directory => format!(
