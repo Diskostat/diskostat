@@ -1,8 +1,8 @@
 use std::sync::Weak;
 use std::sync::{Arc, RwLock};
 
-use crate::Node;
 use crate::NodeToRootIterator;
+use crate::{Node, RwLockExt};
 
 /// Tree made out of references. Multi-threaded.
 ///
@@ -75,17 +75,12 @@ impl<T> Tree<T> {
     /// When could not write to parrent, see `RwLock`.
     pub fn attach_child(parent: &Arc<RwLock<Node<T>>>, child: T) -> Arc<RwLock<Node<T>>> {
         let child = {
-            let mut parent = parent
-                .write()
-                .expect("Could not write to parent while attaching child");
+            let mut parent = parent.write_unwrap();
 
             parent.create_and_attach_child(child)
         };
 
-        child
-            .write()
-            .expect("Writing to newly created child failed when trying to attach its parent")
-            .attach_parent(parent);
+        child.write_unwrap().attach_parent(parent);
 
         // Return newly created and fully connected node.
         child
@@ -115,13 +110,7 @@ impl<T> Tree<T> {
         // the parent why at the to not double read.
         let mut parent: Option<Weak<RwLock<Node<T>>>> = None;
         if let Some(root) = self.root.clone() {
-            match (
-                Arc::ptr_eq(&root, node),
-                node.read()
-                    .expect("Could not read node to be removed")
-                    .parent
-                    .clone(),
-            ) {
+            match (Arc::ptr_eq(&root, node), node.read_unwrap().parent.clone()) {
                 (true, None) => {
                     self.root = None;
                     return Ok(());
@@ -150,7 +139,7 @@ impl<T> Tree<T> {
         Tree::remove_child(&parent, node);
 
         // Node clean up.
-        let mut node = node.write().unwrap();
+        let mut node = node.write_unwrap();
         node.parent = None;
 
         Ok(())
@@ -162,18 +151,13 @@ impl<T> Tree<T> {
 impl<T> Tree<T> {
     fn remove_child(parent: &Arc<RwLock<Node<T>>>, child_to_remove: &Arc<RwLock<Node<T>>>) {
         let index = parent
-            .read()
-            .expect("Failed to read from parent while computing child index")
+            .read_unwrap()
             .children
             .iter()
             .position(|child| Arc::ptr_eq(child, child_to_remove))
             .expect("The child is missing in parent provided.");
 
-        parent
-            .write()
-            .expect("Could not write to parent while removing child")
-            .children
-            .remove(index);
+        parent.write_unwrap().children.remove(index);
     }
 
     pub fn iter_to_root_from_node(node: Arc<RwLock<Node<T>>>) -> NodeToRootIterator<T> {

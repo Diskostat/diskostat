@@ -23,7 +23,7 @@ use super::{
     tree_walk_state::{CustomJWalkClientState, TreeWalkAncestor, TreeWalkState},
 };
 
-use ref_tree::{Node, Tree};
+use ref_tree::{Node, RwLockExt, Tree};
 
 pub enum BackpropOperation {
     Add,
@@ -66,9 +66,7 @@ impl DiskoTree {
             .iter()
             .enumerate()
             .map(|(index, child)| {
-                let child = child
-                    .read()
-                    .expect("Failed to read child while getting children");
+                let child = child.read_unwrap();
                 let mut entry = EntryNodeView::from(&child.data);
 
                 entry.index_to_original_node = Some(index);
@@ -96,9 +94,7 @@ impl DiskoTree {
             .current_directory
             .clone()
             .context("Current directory not set")?;
-        let current_directory = current_directory_arc
-            .read()
-            .expect("Failed to read current directory");
+        let current_directory = current_directory_arc.read_unwrap();
         let parent = current_directory
             .get_parent()
             .context("Failed to get parent of current directory")?
@@ -116,9 +112,7 @@ impl DiskoTree {
             .current_directory
             .take()
             .context("Current directory not set")?;
-        let current_directory = current_directory_arc
-            .read()
-            .expect("Failed to read current directory");
+        let current_directory = current_directory_arc.read_unwrap();
         let subdir_arc = current_directory
             .get_child_at(index)
             .context("Failed to get child at given index")?;
@@ -143,17 +137,9 @@ impl DiskoTree {
         sort_by_disk_size: bool,
     ) -> Option<(EntryNodeView, Vec<EntryNodeView>)> {
         if self.current_directory.is_none() {
-            self.current_directory = self
-                .tree
-                .read()
-                .expect("Failed to read the underlying tree in diskotree")
-                .get_root();
+            self.current_directory = self.tree.read_unwrap().get_root();
         }
-        let current_directory = self
-            .current_directory
-            .as_ref()?
-            .read()
-            .expect("Failed to read current directory");
+        let current_directory = self.current_directory.as_ref()?.read_unwrap();
 
         Some(Self::get_view_of_directory(
             &current_directory,
@@ -171,16 +157,10 @@ impl DiskoTree {
         sort_by_disk_size: bool,
     ) -> Option<Vec<EntryNodeView>> {
         let subdir_arc = {
-            let current_directory = self
-                .current_directory
-                .as_ref()?
-                .read()
-                .expect("Failed to read current directory");
+            let current_directory = self.current_directory.as_ref()?.read_unwrap();
             current_directory.get_child_at(index)?
         };
-        let subdir = subdir_arc
-            .read()
-            .expect("Failed to read subdir while getting subdir view");
+        let subdir = subdir_arc.read_unwrap();
 
         Some(Self::get_children(&subdir, sort_by_disk_size))
     }
@@ -256,9 +236,7 @@ impl DiskoTree {
             .context("Current directory not set")?;
 
         let children = {
-            let current_directory = current_directory_arc
-                .read()
-                .expect("Failed to write current directory");
+            let current_directory = current_directory_arc.read_unwrap();
 
             current_directory.get_children()
         };
@@ -277,9 +255,7 @@ impl DiskoTree {
                 .context("Provided index is out of bounds.")?;
             let child_data = {
                 let child = child.clone();
-                let read_child = child
-                    .read()
-                    .expect("Failed to read child while deleting children.");
+                let read_child = child.read_unwrap();
 
                 read_child.data.clone()
             };
@@ -289,8 +265,7 @@ impl DiskoTree {
             deleted_size += child_data.size;
             self.tree
                 .clone()
-                .write()
-                .expect("Failed to write to tree while deleting children.")
+                .write_unwrap()
                 .remove_subtree(child)
                 .expect("Failed to delete child.");
         }
@@ -361,13 +336,11 @@ impl DiskoTree {
     fn attach_to_tree(state: &TreeWalkState, node: EntryNode) -> Arc<RwLock<Node<EntryNode>>> {
         match &state.ancestor {
             TreeWalkAncestor::Parent(parent) => Tree::attach_child(parent, node),
-            TreeWalkAncestor::Tree(tree) => tree
-                .write()
-                .expect("Writing to tree failed when setting root.")
-                .create_node_and_set_root(node)
-                .expect(
+            TreeWalkAncestor::Tree(tree) => {
+                tree.write_unwrap().create_node_and_set_root(node).expect(
                     "The inner tree already has a root node but disko tree thinks it does not yet.",
-                ),
+                )
+            }
         }
     }
 
@@ -379,9 +352,7 @@ impl DiskoTree {
         let iter = Tree::iter_to_root_from_node(node.clone());
 
         iter.into_iter().for_each(|node| {
-            let mut node = node
-                .write()
-                .expect("Failed to write while backpropagating size");
+            let mut node = node.write_unwrap();
 
             match operation {
                 BackpropOperation::Add => node.data.size += size,
@@ -393,13 +364,11 @@ impl DiskoTree {
 
 impl fmt::Display for DiskoTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tree = self.tree.read().expect("Failed to read tree");
+        let tree = self.tree.read_unwrap();
         let Some(root) = tree.get_root() else {
             return write!(f, "Empty DiskoTree");
         };
-        let root = root
-            .read()
-            .expect("Failed to read root while printing disko tree");
+        let root = root.read_unwrap();
 
         write!(f, "{}", root.data)?;
         let children = root.get_children();
@@ -410,14 +379,10 @@ impl fmt::Display for DiskoTree {
         };
 
         for child in rest {
-            let child = child
-                .read()
-                .expect("Failed to read child while printing disko tree");
+            let child = child.read_unwrap();
             write!(f, "\n├── {}", child.data)?;
         }
-        let last = last
-            .read()
-            .expect("Failed to read last child while printing disko tree");
+        let last = last.read_unwrap();
         write!(f, "\n└── {}", last.data)
     }
 }

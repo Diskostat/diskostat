@@ -1,5 +1,7 @@
 use std::sync::{Arc, RwLock};
 
+use crate::RwLockExt;
+
 use super::node::Node;
 
 pub struct NodeToRootIterator<T> {
@@ -21,8 +23,7 @@ impl<T> Iterator for NodeToRootIterator<T> {
 
         // Step up the tree.
         self.node = current
-            .read()
-            .expect("Could not read current node.")
+            .read_unwrap()
             .parent
             .clone()
             .and_then(|parent| parent.upgrade());

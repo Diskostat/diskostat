@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use crate::{Node, Tree};
+use crate::{Node, RwLockExt, Tree};
 
 impl<T> Tree<T>
 where
@@ -15,22 +15,20 @@ where
             println!("Tree is empty.");
             return;
         };
-        println!("{}", root.read().unwrap().data);
+        println!("{}", root.read_unwrap().data);
         Tree::pretty_print_node(&root, "");
     }
 
     /// # Panics
     fn pretty_print_node(node: &Arc<RwLock<Node<T>>>, prefix: &str) {
-        let node = node
-            .read()
-            .expect("Could not read node while printing tree.");
+        let node = node.read_unwrap();
         for child in &node.children {
             let is_last = Arc::ptr_eq(child, node.children.last().unwrap());
             println!(
                 "{}{}{}",
                 prefix,
                 if is_last { "└" } else { "├" },
-                child.read().unwrap().data
+                child.read_unwrap().data
             );
             Tree::pretty_print_node(
                 child,
