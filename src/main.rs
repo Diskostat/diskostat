@@ -3,14 +3,14 @@ mod backend;
 /// The front end of the application.
 pub mod ui;
 
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use anyhow::{bail, Result};
 use ui::app::App;
 
 use clap::Parser;
 
-use crate::backend::disko_tree::DiskoTree;
+use crate::backend::{disko_tree::DiskoTree, entry_node::EntryNode};
 
 const DEFAULT_RENDER_RATE: u64 = 30;
 
@@ -51,7 +51,13 @@ fn main() -> Result<()> {
         bail!("threads must be greater than 0");
     }
 
-    let mut tree = DiskoTree::new(arguments.path, arguments.threads);
+    let Ok(metadata) = fs::metadata(&arguments.path) else {
+        bail!("could not load metadata for the given directory");
+    };
+
+    let root = EntryNode::new(arguments.path.clone(), &metadata);
+
+    let mut tree = DiskoTree::new(root, arguments.path, arguments.threads);
 
     if arguments.summary {
         tree.traverse();

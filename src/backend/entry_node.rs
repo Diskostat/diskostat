@@ -9,9 +9,11 @@ use chrono::{DateTime, Local};
 
 use super::entry_size::EntrySize;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum EntryType {
     Directory,
+    // TODO: what should default to?
+    #[default]
     File,
 }
 
@@ -24,7 +26,7 @@ impl From<&Metadata> for EntryType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[allow(dead_code)]
 pub(crate) struct EntryNode {
     pub(crate) path: PathBuf,
@@ -66,7 +68,7 @@ pub enum Mode {
 }
 
 impl EntryNodeView {
-    pub(crate) fn new_dir(path: PathBuf) -> Self {
+    pub(crate) fn new_directory(path: PathBuf) -> Self {
         Self {
             name: extract_file_name(&path),
             path,

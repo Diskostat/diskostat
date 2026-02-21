@@ -129,7 +129,7 @@ impl App {
             main: Main::EmptyDirectory,
             preview: Preview::Empty,
             focus: AppFocus::MainScreen,
-            current_directory: EntryNodeView::new_dir(tree.root_path()),
+            current_directory: EntryNodeView::new_directory(tree.root_path()),
             traversal_finished: false,
             show_bar: false,
             show_disk_size: false,
@@ -166,7 +166,7 @@ impl App {
     fn get_directory_preview(&self, entry: &EntryNodeView) -> Preview {
         let subdir_entries = self
             .tree
-            .get_subdir_of_current_dir_view(
+            .subdir_of_current_directory_view(
                 entry
                     .index_to_original_node
                     .expect("should never get the root directory as a child"),
@@ -212,11 +212,9 @@ impl App {
     }
 
     pub fn update_view_on_switch_dir(&mut self) {
-        let Some((current_directory, entries)) =
-            self.tree.get_current_dir_view(self.state.show_disk_size)
-        else {
-            return;
-        };
+        let (current_directory, entries) =
+            self.tree.current_directory_view(self.state.show_disk_size);
+
         self.state.current_directory = current_directory;
         self.state.main = {
             if entries.is_empty() {
@@ -229,11 +227,9 @@ impl App {
     }
 
     pub fn update_view(&mut self) {
-        let Some((current_directory, entries)) =
-            self.tree.get_current_dir_view(self.state.show_disk_size)
-        else {
-            return;
-        };
+        let (current_directory, entries) =
+            self.tree.current_directory_view(self.state.show_disk_size);
+
         self.state.current_directory = current_directory;
 
         if entries.is_empty() {

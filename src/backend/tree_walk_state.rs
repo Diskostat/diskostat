@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Formatter},
+    fmt::Debug,
     fs,
     sync::{Arc, RwLock},
 };
@@ -11,25 +11,19 @@ use std::{
 };
 
 use super::entry_node::EntryNode;
-use ref_tree::{Node, Tree};
+use super::node::Node;
 
-#[derive(Clone)]
-pub(crate) enum TreeWalkAncestor {
-    Tree(Arc<RwLock<Tree<EntryNode>>>),
-    Parent(Arc<RwLock<Node<EntryNode>>>),
-}
-
-#[derive(Clone)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct TreeWalkState {
-    pub(crate) ancestor: TreeWalkAncestor,
+    pub(crate) parent: Arc<RwLock<Node<EntryNode>>>,
     #[cfg(unix)]
     inodes_unvisited_links: Arc<Mutex<HashMap<u64, u64>>>,
 }
 
 impl TreeWalkState {
-    pub fn new(tree: Arc<RwLock<Tree<EntryNode>>>) -> Self {
+    pub fn new(root: Arc<RwLock<Node<EntryNode>>>) -> Self {
         Self {
-            ancestor: TreeWalkAncestor::Tree(tree),
+            parent: root,
             #[cfg(unix)]
             inodes_unvisited_links: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -75,25 +69,6 @@ impl TreeWalkState {
     #[cfg(not(unix))]
     pub fn file_has_been_seen(&mut self, _metadata: &fs::Metadata) -> bool {
         false
-    }
-}
-
-impl Default for TreeWalkState {
-    fn default() -> Self {
-        Self {
-            ancestor: TreeWalkAncestor::Tree(Arc::new(RwLock::new(Tree::new()))),
-            #[cfg(unix)]
-            inodes_unvisited_links: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-}
-
-impl Debug for TreeWalkState {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self.ancestor {
-            TreeWalkAncestor::Tree(_) => write!(f, "TreeWalkState {{ ancestor: Tree }}"),
-            TreeWalkAncestor::Parent(_) => write!(f, "TreeWalkState {{ ancestor: Parent }}"),
-        }
     }
 }
 
