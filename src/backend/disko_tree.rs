@@ -296,12 +296,15 @@ impl DiskoTree {
                 continue;
             };
 
-            let mut entry = EntryNode::new(child.path(), &metadata);
+            let child_size = if state.file_has_been_seen(&metadata) {
+                EntrySize::default()
+            } else {
+                EntrySize::new(&child.path(), &metadata)
+            };
 
-            if state.file_has_been_seen(&metadata) {
-                entry.size = EntrySize::default();
-            }
-            size += entry.size;
+            let entry = EntryNode::new_with_size(child.path(), &metadata, child_size);
+
+            size += child_size;
             Node::create_and_attach_child(&state.parent, entry);
         }
 

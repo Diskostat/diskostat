@@ -121,6 +121,10 @@ impl From<&EntryNode> for EntryNodeView {
 impl EntryNode {
     pub(crate) fn new(path: PathBuf, metadata: &Metadata) -> Self {
         let size = EntrySize::new(&path, metadata);
+        Self::new_with_size(path, metadata, size)
+    }
+
+    pub(crate) fn new_with_size(path: PathBuf, metadata: &Metadata, size: EntrySize) -> Self {
         Self {
             path,
             size,
