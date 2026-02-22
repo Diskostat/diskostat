@@ -251,25 +251,37 @@ impl DiskoTree {
         state: &mut TreeWalkState,
         children: &mut [jwalk::Result<DirEntry<CustomJWalkClientState>>],
     ) {
-        // Skip parent directory (./..) and the root directory, since that
-        // has been added in the constructor.
-        match depth {
-            None | Some(0) => return,
-            _ => (),
-        }
+        let mut size = match depth {
+            // Skip parent directory (./..)
+            None => return,
+            // The node for the root directory has already been created
+            // and is stored as the first parent. In this case, we don't
+            // have to do anything with its size, because we know that
+            // this directory's self size does not have to be propagated upward.
+            Some(0) => EntrySize::default(),
+            _ => {
+                let Ok(dir_metadata) = fs::metadata(dir_path) else {
+                    return;
+                };
 
-        let Ok(dir_metadata) = fs::metadata(dir_path) else {
-            return;
+                let mut dir_node = EntryNode::new(dir_path.to_path_buf(), &dir_metadata);
+
+                // yank the size leaving 0, since we will add the
+                // size later during backpropagation
+                let size = mem::take(&mut dir_node.size);
+
+                // Create a new node and attach it to the parent stored
+                // in the state (which is the directory that contains this entry).
+                // Store it in parent to make it visible when jwalk recurses.
+                state.parent = Node::create_and_attach_child(&state.parent, dir_node);
+
+                size
+            }
         };
 
-        let mut dir_node = EntryNode::new(dir_path.to_path_buf(), &dir_metadata);
-
-        // yank the size leaving 0, since we will add the size later
-        // during backpropagation
-        let mut size = mem::take(&mut dir_node.size);
-
-        // create a node for this directory
-        let node = Node::create_and_attach_child(&state.parent, dir_node);
+        // At this point, `state.parent` actually refers to the current node
+        // we are in.
+        // This is a bit unintuitive, but simplifies the code quite a bit.
 
         for child in children {
             let Ok(child) = child else {
@@ -290,12 +302,10 @@ impl DiskoTree {
                 entry.size = EntrySize::default();
             }
             size += entry.size;
-            Node::create_and_attach_child(&node, entry);
+            Node::create_and_attach_child(&state.parent, entry);
         }
 
-        Self::backprop_size(&node, size, BackpropOperation::Add);
-
-        state.parent = node;
+        Self::backprop_size(&state.parent, size, BackpropOperation::Add);
     }
 
     fn backprop_size(
