@@ -26,11 +26,6 @@ use super::{
 use super::node::{Node, NodeToRootIterator};
 use diskostat::RwLockExt;
 
-pub enum BackpropOperation {
-    Add,
-    Subtract,
-}
-
 pub struct DiskoTree {
     root: Arc<RwLock<Node<EntryNode>>>,
     current_directory: Arc<RwLock<Node<EntryNode>>>,
@@ -234,11 +229,9 @@ impl DiskoTree {
             self.current_directory.write_unwrap().remove_child(index);
         }
 
-        Self::backprop_size(
-            &self.current_directory,
-            deleted_size,
-            BackpropOperation::Subtract,
-        );
+        Self::apply_upward(&self.current_directory, |node: &mut Node<EntryNode>| {
+            node.data.size -= deleted_size;
+        });
 
         Ok(())
     }
@@ -308,23 +301,22 @@ impl DiskoTree {
             Node::create_and_attach_child(&state.parent, entry);
         }
 
-        Self::backprop_size(&state.parent, size, BackpropOperation::Add);
+        Self::apply_upward(&state.parent, |node: &mut Node<EntryNode>| {
+            node.data.size += size;
+        });
     }
 
-    fn backprop_size(
+    /// Apply `mutator` to `node` and its ancestors.
+    fn apply_upward<F: FnMut(&mut Node<EntryNode>)>(
         node: &Arc<RwLock<Node<EntryNode>>>,
-        size: EntrySize,
-        operation: BackpropOperation,
+        mut mutator: F,
     ) {
-        let iter = NodeToRootIterator::new(node.clone());
+        let to_root = NodeToRootIterator::new(node.clone());
 
-        iter.into_iter().for_each(|node| {
+        to_root.into_iter().for_each(|node| {
             let mut node = node.write_unwrap();
 
-            match operation {
-                BackpropOperation::Add => node.data.size += size,
-                BackpropOperation::Subtract => node.data.size -= size,
-            };
+            mutator(&mut node);
         });
     }
 }
