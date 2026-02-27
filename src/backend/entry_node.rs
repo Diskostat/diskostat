@@ -135,8 +135,8 @@ impl EntryNode {
 
     pub(crate) fn delete_entry(&self) -> std::io::Result<()> {
         match self.entry_type {
-            EntryType::Directory => std::fs::remove_dir_all(self.path.clone()),
-            EntryType::File => std::fs::remove_file(self.path.clone()),
+            EntryType::Directory => std::fs::remove_dir_all(&self.path),
+            EntryType::File => std::fs::remove_file(&self.path),
         }
     }
 }
