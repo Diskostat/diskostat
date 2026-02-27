@@ -21,9 +21,12 @@ impl<T> Node<T> {
         self.parent.upgrade()
     }
 
-    /// Returns the child at the given index, or `None` if the index is out of bounds.
-    pub fn get_child(&self, index: usize) -> Option<Arc<RwLock<Node<T>>>> {
-        self.children.get(index).cloned()
+    /// Returns the child at the given index.
+    ///
+    /// # Panics
+    /// Panics if the index is out of bounds.
+    pub fn child(&self, index: usize) -> &Arc<RwLock<Node<T>>> {
+        &self.children[index]
     }
 
     /// Removes the child at the given index.

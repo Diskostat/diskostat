@@ -98,15 +98,11 @@ impl DiskoTree {
 
     /// Switch the current working directory to its child at the given index.
     ///
-    /// Returns an error if the index is out of bounds.
-    pub(crate) fn switch_to_subdirectory(&mut self, index: usize) -> Result<()> {
-        let subdir = self
-            .current_directory
-            .read_unwrap()
-            .get_child(index)
-            .context("Failed to get child at given index")?;
+    /// # Panics
+    /// Panics if the index is out of bounds.
+    pub(crate) fn switch_to_subdirectory(&mut self, index: usize) {
+        let subdir = self.current_directory.read_unwrap().child(index).clone();
         self.current_directory = subdir;
-        Ok(())
     }
 
     /// Get the view of the given `directory` and its children.
@@ -132,16 +128,17 @@ impl DiskoTree {
     /// Get the view of the subdirectory of the current directory at the given
     /// index.
     ///
-    /// Returns `None` if the index is out of bounds.
+    /// # Panics
+    /// Panics if the index is out of bounds.
     pub(crate) fn subdir_of_current_directory_view(
         &self,
         index: usize,
         sort_by_disk_size: bool,
-    ) -> Option<Vec<EntryNodeView>> {
-        let locked = self.current_directory.read_unwrap().get_child(index)?;
+    ) -> Vec<EntryNodeView> {
+        let locked = self.current_directory.read_unwrap().child(index).clone();
         let subdir = locked.read_unwrap();
 
-        Some(Self::children_views(&subdir, sort_by_disk_size))
+        Self::children_views(&subdir, sort_by_disk_size)
     }
 
     fn jwalk_walk_dir(
@@ -216,11 +213,7 @@ impl DiskoTree {
         indices.reverse();
 
         for index in indices {
-            let locked = self
-                .current_directory
-                .read_unwrap()
-                .get_child(index)
-                .context("Provided index is out of bounds.")?;
+            let locked = self.current_directory.read_unwrap().child(index).clone();
             let child = locked.read_unwrap();
             child.data.delete_entry()?;
             deleted_size += child.data.size;
