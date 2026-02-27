@@ -8,22 +8,21 @@ use diskostat::RwLockExt;
 #[derive(Debug)]
 pub struct Node<T> {
     pub data: T,
-    pub(crate) children: Vec<Arc<RwLock<Node<T>>>>,
-    pub(crate) parent: Weak<RwLock<Node<T>>>,
+    children: Vec<Arc<RwLock<Node<T>>>>,
+    parent: Weak<RwLock<Node<T>>>,
 }
 
 impl<T> Node<T> {
-    pub fn get_children(&self) -> Vec<Arc<RwLock<Node<T>>>> {
-        self.children.clone()
+    pub fn children(&self) -> &[Arc<RwLock<Node<T>>>] {
+        &self.children
     }
 
-    pub fn get_parent(&self) -> Option<Arc<RwLock<Node<T>>>> {
+    pub fn parent(&self) -> Option<Arc<RwLock<Node<T>>>> {
         self.parent.upgrade()
     }
 
-    /// Returns the child at the given index.
-    /// Returns `None` if index is out of bounds.
-    pub fn get_child_at(&self, index: usize) -> Option<Arc<RwLock<Node<T>>>> {
+    /// Returns the child at the given index, or `None` if the index is out of bounds.
+    pub fn get_child(&self, index: usize) -> Option<Arc<RwLock<Node<T>>>> {
         self.children.get(index).cloned()
     }
 
@@ -95,7 +94,7 @@ impl<T> Iterator for NodeToRootIterator<T> {
         let current = self.node.clone()?;
 
         // Step up the tree.
-        self.node = current.read_unwrap().get_parent();
+        self.node = current.read_unwrap().parent();
 
         // Return the current node.
         Some(current)
@@ -108,7 +107,7 @@ fn node_new() {
     let node = Node::new(0);
     assert_eq!(node.data, 0);
     assert!(node.children.is_empty());
-    assert!(node.get_parent().is_none());
+    assert!(node.parent().is_none());
 }
 
 #[test]

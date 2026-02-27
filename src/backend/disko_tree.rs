@@ -60,7 +60,7 @@ impl DiskoTree {
     /// Get the views of the children of the given `node`.
     fn children_views(node: &Node<EntryNode>, sort_by_disk_size: bool) -> Vec<EntryNodeView> {
         let mut children: Vec<EntryNodeView> = node
-            .get_children()
+            .children()
             .iter()
             .enumerate()
             .map(|(index, child)| {
@@ -90,7 +90,7 @@ impl DiskoTree {
         let parent = self
             .current_directory
             .read_unwrap()
-            .get_parent()
+            .parent()
             .context("current directory has no parent")?;
         self.current_directory = parent;
         Ok(())
@@ -103,7 +103,7 @@ impl DiskoTree {
         let subdir = self
             .current_directory
             .read_unwrap()
-            .get_child_at(index)
+            .get_child(index)
             .context("Failed to get child at given index")?;
         self.current_directory = subdir;
         Ok(())
@@ -138,7 +138,7 @@ impl DiskoTree {
         index: usize,
         sort_by_disk_size: bool,
     ) -> Option<Vec<EntryNodeView>> {
-        let locked = self.current_directory.read_unwrap().get_child_at(index)?;
+        let locked = self.current_directory.read_unwrap().get_child(index)?;
         let subdir = locked.read_unwrap();
 
         Some(Self::children_views(&subdir, sort_by_disk_size))
@@ -219,7 +219,7 @@ impl DiskoTree {
             let locked = self
                 .current_directory
                 .read_unwrap()
-                .get_child_at(index)
+                .get_child(index)
                 .context("Provided index is out of bounds.")?;
             let child = locked.read_unwrap();
             child.data.delete_entry()?;
@@ -326,7 +326,7 @@ impl fmt::Display for DiskoTree {
         let root = self.root.read_unwrap();
 
         write!(f, "{}", root.data)?;
-        let children = root.get_children();
+        let children = root.children().to_vec();
         std::mem::drop(root); // Drop the lock on root.
 
         let Some((last, rest)) = children.split_last() else {
