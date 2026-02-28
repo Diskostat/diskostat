@@ -1,4 +1,5 @@
 use std::{
+    cell::OnceCell,
     fmt::Display,
     fs::{self, Metadata},
     path::{Path, PathBuf},
@@ -6,77 +7,110 @@ use std::{
 
 use chrono::{DateTime, Local};
 
-use super::{entry_size::EntrySize, tree_walk_state::CustomJWalkClientState};
+use super::entry_size::EntrySize;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum EntryType {
     Directory,
+    // TODO: what should default to?
+    #[default]
     File,
 }
 
-#[derive(Clone, Debug)]
+impl From<&Metadata> for EntryType {
+    fn from(metadata: &Metadata) -> Self {
+        if metadata.is_dir() {
+            return EntryType::Directory;
+        }
+        EntryType::File
+    }
+}
+
+#[derive(Clone, Debug, Default)]
 #[allow(dead_code)]
 pub(crate) struct EntryNode {
-    pub(crate) name: String,
     pub(crate) path: PathBuf,
-    pub(crate) sizes: EntrySize,
-    pub(crate) dir_size: Option<EntrySize>,
+    pub(crate) size: EntrySize,
     pub(crate) descendants_count: usize,
     pub(crate) entry_type: EntryType,
-    pub(crate) metadata: fs::Metadata,
 }
 
 pub struct EntryNodeView {
     pub name: String,
     pub path: PathBuf,
-    pub sizes: EntrySize,
-    pub dir_size: Option<EntrySize>,
+    pub size: EntrySize,
     pub descendants_count: usize,
     pub entry_type: EntryType,
-    pub mode: Option<Mode>,
-    pub access_time: Option<DateTime<Local>>,
+    details: OnceCell<Option<EntryDetails>>,
     pub index_to_original_node: Option<usize>,
 }
 
-#[derive(Clone, Copy, Debug)]
+pub struct EntryDetails {
+    mode: Option<Mode>,
+    self_size: EntrySize,
+    access_time: Option<DateTime<Local>>,
+}
+
+impl EntryDetails {
+    pub fn new(metadata: &Metadata, path: &Path) -> Self {
+        Self {
+            mode: extract_mode(metadata),
+            self_size: EntrySize::new(path, metadata),
+            access_time: metadata.accessed().ok().map(DateTime::<Local>::from),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub enum Mode {
     Permissions(u32),
     Attributes(u32),
 }
 
 impl EntryNodeView {
-    pub(crate) fn new_dir(path: PathBuf) -> Self {
+    pub(crate) fn new_directory(path: PathBuf) -> Self {
         Self {
             name: extract_file_name(&path),
             path,
-            sizes: EntrySize::default(),
-            dir_size: Some(EntrySize::default()),
+            size: EntrySize::default(),
             descendants_count: 0,
             entry_type: EntryType::Directory,
-            // Unknown here for now, this needs to be updated later during the
-            // backend refactor.
-            mode: None,
-            access_time: None,
+            details: OnceCell::new(),
             index_to_original_node: None,
         }
+    }
+
+    fn details(&self) -> Option<&EntryDetails> {
+        self.details
+            .get_or_init(|| {
+                let metadata = &fs::metadata(&self.path).ok()?;
+                Some(EntryDetails::new(metadata, &self.path))
+            })
+            .as_ref()
+    }
+
+    pub(crate) fn self_size(&self) -> EntrySize {
+        self.details().map(|d| d.self_size).unwrap_or_default()
+    }
+
+    pub(crate) fn access_time(&self) -> Option<DateTime<Local>> {
+        self.details().and_then(|d| d.access_time)
+    }
+
+    pub(crate) fn mode(&self) -> Option<Mode> {
+        self.details().and_then(|d| d.mode)
     }
 }
 
 impl From<&EntryNode> for EntryNodeView {
     fn from(entry_node: &EntryNode) -> Self {
         Self {
-            name: entry_node.name.clone(),
+            name: extract_file_name(&entry_node.path),
             path: entry_node.path.clone(),
-            sizes: entry_node.sizes,
-            dir_size: entry_node.dir_size,
+            size: entry_node.size,
             descendants_count: entry_node.descendants_count,
             entry_type: entry_node.entry_type,
-            access_time: entry_node
-                .metadata
-                .accessed()
-                .ok()
-                .map(DateTime::<Local>::from),
-            mode: extract_mode(&entry_node.metadata),
+            details: OnceCell::new(),
             index_to_original_node: None,
         }
     }
@@ -85,35 +119,24 @@ impl From<&EntryNode> for EntryNodeView {
 // Convenience helpers
 
 impl EntryNode {
-    pub(crate) fn new_dir(path: &Path) -> Option<(Self, EntrySize)> {
-        let Ok(metadata) = fs::metadata(path) else {
-            return None;
-        };
-        if !metadata.is_dir() {
-            return None;
-        }
+    pub(crate) fn new(path: PathBuf, metadata: &Metadata) -> Self {
+        let size = EntrySize::new(&path, metadata);
+        Self::new_with_size(path, metadata, size)
+    }
 
-        let name = extract_file_name(path);
-        let size = EntrySize::new(path, &metadata);
-
-        Some((
-            Self {
-                name,
-                path: path.to_path_buf(),
-                sizes: EntrySize::default(),
-                dir_size: Some(size),
-                descendants_count: 0,
-                entry_type: EntryType::Directory,
-                metadata,
-            },
+    pub(crate) fn new_with_size(path: PathBuf, metadata: &Metadata, size: EntrySize) -> Self {
+        Self {
+            path,
             size,
-        ))
+            descendants_count: 0,
+            entry_type: metadata.into(),
+        }
     }
 
     pub(crate) fn delete_entry(&self) -> std::io::Result<()> {
         match self.entry_type {
-            EntryType::Directory => std::fs::remove_dir_all(self.path.clone()),
-            EntryType::File => std::fs::remove_file(self.path.clone()),
+            EntryType::Directory => std::fs::remove_dir_all(&self.path),
+            EntryType::File => std::fs::remove_file(&self.path),
         }
     }
 }
@@ -142,12 +165,12 @@ impl From<&Metadata> for Mode {
 }
 
 #[cfg(any(unix, windows))]
-pub fn extract_mode(metadata: &Metadata) -> Option<Mode> {
-    Some(Mode::from(metadata))
+fn extract_mode(metadata: &Metadata) -> Option<Mode> {
+    Some(metadata.into())
 }
 
 #[cfg(not(any(unix, windows)))]
-pub fn extract_mode(_metadata: &Metadata) -> Option<Mode> {
+fn extract_mode(_metadata: &Metadata) -> Option<Mode> {
     None
 }
 
@@ -155,45 +178,11 @@ pub fn extract_mode(_metadata: &Metadata) -> Option<Mode> {
 
 impl Display for EntryNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:<20} • {}", self.name, self.sizes.apparent_size)
-    }
-}
-
-impl TryFrom<&jwalk::DirEntry<CustomJWalkClientState>> for EntryNode {
-    type Error = &'static str;
-
-    fn try_from(value: &jwalk::DirEntry<CustomJWalkClientState>) -> Result<Self, Self::Error> {
-        let Ok(metadata) = value.metadata() else {
-            return Err("Error getting metadata from DirEntry");
-        };
-        let name = value.file_name().to_string_lossy().to_string();
-        let entry_type = Self::extract_entry_type(value);
-
-        let size = EntrySize::new(value.path().as_path(), &metadata);
-        let dir_size = match entry_type {
-            EntryType::Directory => Some(size),
-            EntryType::File => None,
-        };
-
-        Ok(EntryNode {
-            name,
-            path: value.path().clone(),
-            sizes: size,
-            dir_size,
-            descendants_count: 0,
-            entry_type,
-            metadata,
-        })
-    }
-}
-
-// Helper functions for TryFrom
-
-impl EntryNode {
-    fn extract_entry_type(dir_entry: &jwalk::DirEntry<CustomJWalkClientState>) -> EntryType {
-        if dir_entry.file_type.is_dir() {
-            return EntryType::Directory;
-        }
-        EntryType::File
+        write!(
+            f,
+            "{:<20} • {}",
+            extract_file_name(&self.path),
+            self.size.apparent
+        )
     }
 }
